@@ -93,8 +93,9 @@ def sample_sentinel_response(sample_b4, sample_b8, sample_lst):
         },
         "acquisition_date": datetime(2026, 7, 1, 10, 30, tzinfo=timezone.utc),
         "cloud_coverage_pct": 3.2,
-        "resolution_m": 10,
-        "source": "Sentinel-2 L2A",
+        "resolution_m_ndvi": 10,
+        "resolution_m_lst": 1000,
+        "source": "Sentinel-2 L2A + Sentinel-3 SLSTR (brightness temperature approximation)",
     }
 
 

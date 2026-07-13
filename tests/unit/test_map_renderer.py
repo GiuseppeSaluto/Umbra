@@ -10,8 +10,9 @@ def _sample_analysis():
         "heat_island_coverage_pct": 35.5,
         "acquisition_date": "2026-07-01T10:30:00+00:00",
         "cloud_coverage_pct": 3.2,
-        "resolution_m": 10,
-        "source": "Sentinel-2 L2A",
+        "resolution_m_ndvi": 10,
+        "resolution_m_lst": 1000,
+        "source": "Sentinel-2 L2A + Sentinel-3 SLSTR (brightness temperature approximation)",
     }
 
 

@@ -25,6 +25,7 @@ def get_area_analysis(lat: float, lon: float, radius_m: float) -> dict:
         "heat_island_coverage_pct": heat_pct,
         "acquisition_date": data["acquisition_date"].isoformat(),
         "cloud_coverage_pct": data["cloud_coverage_pct"],
-        "resolution_m": data["resolution_m"],
+        "resolution_m_ndvi": data["resolution_m_ndvi"],
+        "resolution_m_lst": data["resolution_m_lst"],
         "source": data["source"],
     }
