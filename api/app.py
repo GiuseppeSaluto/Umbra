@@ -6,6 +6,7 @@ from flask import Flask
 
 from db.mongo import get_client
 from api.routes.health import health_bp
+from api.routes.area import area_bp
 
 
 def create_app(testing: bool = False) -> Flask:
@@ -23,5 +24,6 @@ def create_app(testing: bool = False) -> Flask:
         app.extensions["mongo"] = mongo
 
     app.register_blueprint(health_bp)
+    app.register_blueprint(area_bp)
 
     return app
