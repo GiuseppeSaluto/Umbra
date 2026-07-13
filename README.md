@@ -1,5 +1,7 @@
 # Umbra 🌳
 
+[![CI](https://github.com/GiuseppeSaluto/Umbra/actions/workflows/ci.yml/badge.svg)](https://github.com/GiuseppeSaluto/Umbra/actions/workflows/ci.yml)
+
 Geospatial platform that uses real satellite data (Sentinel-2) to objectively identify
 urban heat islands and green areas, surfacing climate refuges on a navigable map.
 Built to close a gap in Italian municipal planning: there is no national standard for
