@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from flask import Flask
 
 from db.mongo import get_client
+from api.routes.health import health_bp
 
 
 def create_app(testing: bool = False) -> Flask:
@@ -20,5 +21,7 @@ def create_app(testing: bool = False) -> Flask:
         mongo = get_client(mongo_uri)
         app.extensions = getattr(app, "extensions", {})
         app.extensions["mongo"] = mongo
+
+    app.register_blueprint(health_bp)
 
     return app
