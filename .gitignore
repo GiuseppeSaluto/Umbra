@@ -9,3 +9,5 @@ venv/
 *.tiff
 .DS_Store
 rust_engine/target/
+.vscode/
+*.code-workspace

@@ -60,7 +60,14 @@ source .venv/bin/activate
 pip install -r requirements.txt
 
 cp .env.example .env
-# fill in CDSE_CLIENT_ID / CDSE_CLIENT_SECRET (Copernicus Data Space Ecosystem)
+
+# Real secrets never go in .env - create a separate file outside the repo:
+mkdir -p ~/.secrets && cat > ~/.secrets/umbra <<'EOF'
+COPERNICUS_CLIENT_ID=...
+COPERNICUS_CLIENT_SECRET=...
+FLASK_SECRET_KEY=...
+EOF
+chmod 600 ~/.secrets/umbra
 
 pytest
 ```
@@ -71,8 +78,10 @@ MongoDB is expected locally on the default port:
 mongod --dbpath /path/to/data --logpath /path/to/mongo.log --fork
 ```
 
-Umbra uses its own database name (`umbra`, set via `MONGO_URI` in `.env.example`) on the
-shared local MongoDB instance — it does not read or write any other project's database.
+Umbra connects to its own database (`umbra`, hardcoded in `db/mongo.py`) on the shared
+local MongoDB instance — it does not read or write any other project's database. On first
+connection it creates whatever collections and 2dsphere indexes are missing, so the schema
+is self-consistent from a clean instance.
 
 ---
 
@@ -110,15 +119,22 @@ umbra/
 
 ## Environment Variables
 
+Config is split across two files, loaded in this order by `api/app.py`:
+
 | Variable | Required | Description |
 |---|---|---|
-| `CDSE_CLIENT_ID` | Yes | Copernicus Data Space Ecosystem client ID |
-| `CDSE_CLIENT_SECRET` | Yes | Copernicus Data Space Ecosystem client secret |
-| `MONGO_URI` | No | MongoDB connection string (default: `mongodb://localhost:27017/umbra`) |
+| `COPERNICUS_CLIENT_ID` | Yes | Copernicus Data Space Ecosystem / Sentinel Hub OAuth client ID |
+| `COPERNICUS_CLIENT_SECRET` | Yes | Copernicus Data Space Ecosystem / Sentinel Hub OAuth client secret |
+| `FLASK_SECRET_KEY` | Yes | Secret key for Flask session/cookie signing — generate with `python -c "import secrets; print(secrets.token_hex(32))"` |
+
+**`.env`** (project root, git-ignored, copied from `.env.example`) — non-sensitive config only:
+
+| Variable | Required | Description |
+|---|---|---|
+| `MONGO_URI` | No | MongoDB connection string, host only — database name is `umbra`, set in code (default: `mongodb://localhost:27017`) |
 | `VALKEY_URL` | No | Valkey connection string — used from Phase 3 onward |
 | `RUST_ENGINE_URL` | No | Rust engine base URL — used from Phase 2 onward |
-
-Copy `.env.example` → `.env` and fill in values before starting. `.env` is git-ignored.
+| `FLASK_ENV` | No | `development` or `production` |
 
 ---
 
