@@ -16,7 +16,7 @@ Copernicus API (Sentinel-2)
       │
       ▼
 ┌───────────────────────────────────┐
-│  Python processing (rasterio)      │  ← NDVI / LST computation
+│  Python processing (sentinelhub)   │  ← NDVI / LST computation
 │   processing/sentinel, ndvi, heat  │
 └────────────┬───────────────────────┘
              │  persist
@@ -100,12 +100,13 @@ umbra/
 ├── api/
 │   ├── routes/              # Flask endpoints
 │   ├── services/            # Isolated business logic — key architectural boundary
-│   ├── models/               # Domain models (Pydantic)
+│   ├── models/               # Domain models
 │   └── app.py
 ├── processing/
 │   ├── sentinel.py          # Copernicus data download and access
 │   ├── ndvi.py               # NDVI computation from Sentinel-2 bands
-│   └── heat.py               # LST / heat island computation
+│   ├── heat.py               # LST / heat island computation
+│   └── geo.py                 # Coordinate validation, distance, bounding box
 ├── rust_engine/              # Rust microservice (Axum) — activated in Phase 2
 ├── db/
 │   ├── mongo.py              # MongoDB connection and queries

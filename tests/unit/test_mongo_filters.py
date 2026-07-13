@@ -1,6 +1,6 @@
 import pytest
 
-from db.mongo import build_near_filter, build_geo_within_filter
+from db.mongo import build_near_filter, build_geo_within_filter, build_geo_intersects_filter
 
 
 # ----------------------------------------------------------------
@@ -73,5 +73,43 @@ def test_build_geo_within_filter_rejects_missing_coordinates():
 
 def test_build_geo_within_filter_uses_custom_field_name(sample_geojson_polygon):
     filt = build_geo_within_filter(sample_geojson_polygon, field="geo")
+    assert "geo" in filt
+    assert "location" not in filt
+
+
+# ----------------------------------------------------------------
+# build_geo_intersects_filter
+# ----------------------------------------------------------------
+
+def test_build_geo_intersects_filter_structure(sample_geojson_polygon):
+    filt = build_geo_intersects_filter(sample_geojson_polygon)
+    assert filt == {
+        "location": {
+            "$geoIntersects": {
+                "$geometry": sample_geojson_polygon
+            }
+        }
+    }
+
+
+def test_build_geo_intersects_filter_accepts_point_geometry(sample_geojson_point):
+    # Unlike $geoWithin, $geoIntersects accepts any GeoJSON geometry type as the
+    # query shape, not just Polygon - it matches any overlap, not just full containment.
+    filt = build_geo_intersects_filter(sample_geojson_point)
+    assert filt["location"]["$geoIntersects"]["$geometry"] == sample_geojson_point
+
+
+def test_build_geo_intersects_filter_rejects_missing_type():
+    with pytest.raises(ValueError):
+        build_geo_intersects_filter({"coordinates": [0, 0]})
+
+
+def test_build_geo_intersects_filter_rejects_missing_coordinates():
+    with pytest.raises(ValueError):
+        build_geo_intersects_filter({"type": "Polygon"})
+
+
+def test_build_geo_intersects_filter_uses_custom_field_name(sample_geojson_polygon):
+    filt = build_geo_intersects_filter(sample_geojson_polygon, field="geo")
     assert "geo" in filt
     assert "location" not in filt

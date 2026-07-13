@@ -38,8 +38,7 @@ A public space with free, open access that offers relief from extreme temperatur
 | Primary database | MongoDB + 2dsphere index | Storage for GeoJSON, green areas, heat islands, refuges |
 | Cache | Valkey | Cache for frequent geospatial queries (open source, Linux Foundation) |
 | Visual layer | Folium (Python) | Generates a Leaflet map from Python, served by Flask as HTML |
-| Satellite data | Sentinel-2 / Copernicus API | NDVI (vegetation), LST (surface temperature) |
-| Data validation | Pydantic | Validation of API input and domain models |
+| Satellite data | Sentinel-2 / Sentinel-3 via Copernicus API | NDVI (vegetation), LST approximation (surface temperature) |
 
 **Notes:**
 - Docker is not used during active development. It will be introduced once the project is functional, as the final deployment layer.
@@ -92,7 +91,7 @@ Valkey is the open source fork of Redis, created in 2024 by the Linux Foundation
 ## 6. Architecture and data flow
 
 ```
-Copernicus API  ->  Python processing (rasterio/numpy)  ->  MongoDB
+Copernicus API (sentinelhub)  ->  Python processing (numpy)  ->  MongoDB
                                    |
              Flask REST API  <-  Valkey (cache)
                    |
@@ -110,7 +109,7 @@ umbra/
 |-- api/
 |   |-- routes/              # Flask endpoints
 |   |-- services/            # Isolated business logic - key architectural boundary
-|   |-- models/              # Domain models (Pydantic)
+|   |-- models/              # Domain models
 |   `-- app.py
 |-- processing/
 |   |-- sentinel.py          # Copernicus data download and access
@@ -149,13 +148,13 @@ NDVI = (B8 - B4) / (B8 + B4)
 ```
 
 **LST (Land Surface Temperature):**
-Surface temperature derived from the thermal band. Identifies urban heat islands — the hottest zones of the city.
+Sentinel-2 has no thermal band, so LST is approximated from Sentinel-3 SLSTR's S9 thermal channel (brightness temperature, ~1km resolution) - a defensible proxy for relative hot/cool comparison at neighborhood scale, not atmospherically-corrected split-window LST. Identifies urban heat islands — the hottest zones of the city.
 
 **Access:**
-Copernicus Data Space Ecosystem (CDSE) — free, registration required. Python SDK: `sentinelhub` or direct access via the STAC API.
+Copernicus Data Space Ecosystem (CDSE) — free, registration required. Python SDK: `sentinelhub`, which handles OAuth2 authentication and returns band data directly as numpy arrays.
 
 **Format and libraries:**
-GeoTIFF — georeferenced raster images. `rasterio` for I/O, `numpy` for pixel-by-pixel computation. Rust in Phase 2 will handle this processing for performance on large images.
+`sentinelhub`'s Process API returns numpy arrays directly - no local GeoTIFF handling needed. `numpy` for pixel-by-pixel computation. Rust in Phase 2 will handle this processing for performance on large images.
 
 **Resolution:**
 10m per pixel for optical bands — enough to distinguish parks, streets and city blocks in an urban context.
@@ -166,7 +165,7 @@ GeoTIFF — georeferenced raster images. `rasterio` for I/O, `numpy` for pixel-b
 
 | Phase | Goal | Components involved |
 |---|---|---|
-| 1 — MVP | Sentinel-2 pipeline -> heat island map + green areas per geographic area | Flask, MongoDB, Folium, Copernicus API, rasterio, numpy |
+| 1 — MVP | Sentinel-2 pipeline -> heat island map + green areas per geographic area | Flask, MongoDB, Folium, Copernicus API (sentinelhub), numpy |
 | 2 — Rust Engine | Replace Python raster processing with a Rust microservice for performance on large images | Rust + Axum, called by Flask over internal HTTP |
 | 3 — Cache | Add Valkey to cache results for already-processed areas (variable TTL for satellite data) | Valkey, cache layer in db/valkey_cache.py |
 | 4 — Expansions | Heat wave alerting (Open-Meteo API), multi-city coverage, map UX improvements | Open-Meteo, historical Sentinel-2 data, potential PWA |
@@ -176,11 +175,9 @@ GeoTIFF — georeferenced raster images. `rasterio` for I/O, `numpy` for pixel-b
 ## 10. Explicit limits and architectural decisions
 
 - **No scraping:** dropped in favor of structured satellite data via API. Scraping municipal websites is fragile, not standardizable, not scalable.
-- **No custom frontend:** no hand-written JS. Folium generates the entire map from Python. User geolocation uses a single inline JS call in the Folium page.
 - **No Docker in development:** introduced only once the project is functional, as a deployment layer.
-- **No Flutter / Mobile:** the platform is web-first. Accessible from a mobile browser.
 - **Rust not forced in the MVP:** the raster pipeline is initially all Python. Rust comes in only once there is a measured bottleneck — not before.
-- **Open source only:** Valkey (no proprietary Redis), MongoDB Community, Sentinel-2/Copernicus (public EU data), Flask, Axum, Folium, rasterio.
+- **Open source only:** Valkey (no proprietary Redis), MongoDB Community, Sentinel-2/Copernicus (public EU data), Flask, Axum, Folium.
 - **Narrow MVP scope:** v1 does exactly one thing — takes the user's location, downloads Sentinel-2 data for that area, returns a map with LST and NDVI. No institutional refuges, no weather alerting, no cache in v1.
 
 ---

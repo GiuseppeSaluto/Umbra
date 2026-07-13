@@ -1,8 +1,6 @@
 flask==3.1.0
 pymongo==4.10.1
 folium==0.18.0
-pydantic==2.10.3
-rasterio==1.4.3
 numpy==2.2.0
 sentinelhub==3.11.1
 redis==5.2.1

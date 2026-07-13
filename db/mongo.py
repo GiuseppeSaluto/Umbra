@@ -101,3 +101,23 @@ def build_geo_within_filter(polygon: dict, field: str = "location") -> dict:
             }
         }
     }
+
+
+def build_geo_intersects_filter(geometry: dict, field: str = "location") -> dict:
+    """Build a $geoIntersects filter - documents whose geometry intersects the
+    given GeoJSON geometry (Point, LineString, Polygon, ...). Unlike $geoWithin,
+    this also matches partial overlaps (e.g. a heat island polygon that only
+    partially overlaps a green area polygon), not just full containment.
+    """
+    if not geometry.get("type"):
+        raise ValueError("geometry is missing 'type'")
+    if "coordinates" not in geometry:
+        raise ValueError("geometry is missing 'coordinates'")
+
+    return {
+        field: {
+            "$geoIntersects": {
+                "$geometry": geometry
+            }
+        }
+    }
