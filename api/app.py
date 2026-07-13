@@ -8,6 +8,7 @@ from db.mongo import get_client
 from api.routes.health import health_bp
 from api.routes.area import area_bp
 from api.routes.map import map_bp
+from api.routes.index import index_bp
 
 
 def create_app(testing: bool = False) -> Flask:
@@ -27,5 +28,6 @@ def create_app(testing: bool = False) -> Flask:
     app.register_blueprint(health_bp)
     app.register_blueprint(area_bp)
     app.register_blueprint(map_bp)
+    app.register_blueprint(index_bp)
 
     return app

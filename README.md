@@ -48,7 +48,13 @@ of the MVP — see [Roadmap](#roadmap).
 
 ## Status
 
-Early stage — repository skeleton and test contracts only, no feature implemented yet.
+Phase 1 (MVP) is functional end-to-end against real Sentinel-2/Sentinel-3 data and a
+real MongoDB instance: `GET /` detects the user's location and redirects to `GET /map`,
+which renders a Folium map with an NDVI/heat-island summary for that area; `GET /api/area`
+returns the same analysis as JSON. Results are cached in MongoDB (`area_analyses`, 24h
+freshness window) to avoid redundant Copernicus calls for the same area. `GET /health`
+reports MongoDB connectivity.
+
 The project follows a test-first workflow: fixtures and contracts in `tests/conftest.py`
 are defined before the implementation exists. Full specification: [docs/SPEC.md](docs/SPEC.md).
 
