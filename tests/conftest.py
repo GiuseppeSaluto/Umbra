@@ -134,7 +134,7 @@ def mock_mongo_collection():
     ]
 
     collection.find.return_value = iter(sample_docs)
-    collection.find_one.return_value = sample_docs[0]
+    collection.find_one.return_value = None  # cache miss by default, mirrors mock_valkey
     collection.insert_one.return_value = MagicMock(inserted_id="new_doc_id")
     collection.count_documents.return_value = len(sample_docs)
     return collection

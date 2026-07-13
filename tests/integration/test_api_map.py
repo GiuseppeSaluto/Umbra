@@ -5,12 +5,12 @@ from api.services.map_service import get_area_map_html
 # api/services/map_service.py
 # ----------------------------------------------------------------
 
-def test_get_area_map_html_returns_html_document(mock_sentinel, modena_center):
+def test_get_area_map_html_returns_html_document(mock_mongo, mock_sentinel, modena_center):
     html = get_area_map_html(modena_center["lat"], modena_center["lon"], radius_m=500)
     assert "<html" in html.lower()
 
 
-def test_get_area_map_html_embeds_center_coordinates(mock_sentinel, modena_center):
+def test_get_area_map_html_embeds_center_coordinates(mock_mongo, mock_sentinel, modena_center):
     html = get_area_map_html(modena_center["lat"], modena_center["lon"], radius_m=500)
     assert str(modena_center["lat"]) in html
     assert str(modena_center["lon"]) in html

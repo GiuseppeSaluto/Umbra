@@ -11,7 +11,7 @@ from processing.geo import validate_coordinates
 
 logger = logging.getLogger(__name__)
 
-REQUIRED_COLLECTIONS = ("green_areas", "heat_islands", "climate_shelters")
+REQUIRED_COLLECTIONS = ("green_areas", "heat_islands", "climate_shelters", "area_analyses")
 
 
 class MongoDBClient:

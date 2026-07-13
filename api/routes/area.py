@@ -2,7 +2,7 @@
 
 from flask import Blueprint, jsonify, request
 
-from api.services.area_service import get_area_analysis
+from api.services.area_service import get_area_analysis_cached
 
 area_bp = Blueprint("area", __name__)
 
@@ -19,7 +19,7 @@ def area():
         }), 400
 
     try:
-        result = get_area_analysis(lat, lon, radius_m)
+        result = get_area_analysis_cached(lat, lon, radius_m)
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
 
