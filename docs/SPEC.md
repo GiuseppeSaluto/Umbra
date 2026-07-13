@@ -70,7 +70,7 @@ The project's core geospatial queries — "find refuges within 500m", "which gre
 - Supports both `Point` (a single refuge, a drinking fountain) and `Polygon` (green area, heat island as a delimited zone).
 
 **Why not PostGIS:**
-PostGIS is the standard for advanced GIS work — operations on complex geometries, area calculations, buffers, polygon unions, native raster support. For Umbra, where raster data (Sentinel-2 GeoTIFF) is processed separately by Python/Rust and the results are saved as documents, MongoDB covers all the necessary use cases. PostGIS would become relevant only if we wanted to query raster data directly from the database — an architectural choice Umbra does not make.
+PostGIS is the standard for advanced GIS work — operations on complex geometries, area calculations, buffers, polygon unions, native raster support. For Umbra, where raster data (Sentinel-2/3 band arrays via `sentinelhub`) is processed separately by Python/Rust and the results are saved as documents, MongoDB covers all the necessary use cases. PostGIS would become relevant only if we wanted to query raster data directly from the database — an architectural choice Umbra does not make.
 
 ---
 
@@ -84,7 +84,7 @@ Valkey is the open source fork of Redis, created in 2024 by the Linux Foundation
 - Caches frequent geospatial queries: if many users search the same area (e.g. downtown Modena), the result is served from Valkey for N minutes without re-running the MongoDB query.
 - Configurable TTL (Time To Live) per data type: NDVI/LST data changes with new Sentinel-2 imagery (days), refuge data changes rarely (hours/days).
 - Key-value data model: simple, not suited to complex queries — it does not replace MongoDB, it only sits alongside it as a response cache.
-- Introduced in Phase 3, not in the MVP: bottlenecks are measured first, then cached.
+- Implemented ahead of the original Phase 3 schedule (`db/valkey_cache.py`, wired into `api/services/area_service.py` as the first cache layer checked, before MongoDB): a 15-minute TTL, exact-match cache in front of MongoDB's own 24h/`$near` cache. The connection is optional and fails soft - if Valkey is unreachable, requests fall back to MongoDB with no error, only reduced speed.
 
 ---
 
@@ -167,7 +167,7 @@ Copernicus Data Space Ecosystem (CDSE) — free, registration required. Python S
 |---|---|---|
 | 1 — MVP | Sentinel-2 pipeline -> heat island map + green areas per geographic area | Flask, MongoDB, Folium, Copernicus API (sentinelhub), numpy |
 | 2 — Rust Engine | Replace Python raster processing with a Rust microservice for performance on large images | Rust + Axum, called by Flask over internal HTTP |
-| 3 — Cache | Add Valkey to cache results for already-processed areas (variable TTL for satellite data) | Valkey, cache layer in db/valkey_cache.py |
+| 3 — Cache | Implemented ahead of schedule: Valkey fast-path cache in front of MongoDB's own cache | Valkey, cache layer in db/valkey_cache.py, wired into api/services/area_service.py |
 | 4 — Expansions | Heat wave alerting (Open-Meteo API), multi-city coverage, map UX improvements | Open-Meteo, historical Sentinel-2 data, potential PWA |
 
 ---
@@ -178,7 +178,7 @@ Copernicus Data Space Ecosystem (CDSE) — free, registration required. Python S
 - **No Docker in development:** introduced only once the project is functional, as a deployment layer.
 - **Rust not forced in the MVP:** the raster pipeline is initially all Python. Rust comes in only once there is a measured bottleneck — not before.
 - **Open source only:** Valkey (no proprietary Redis), MongoDB Community, Sentinel-2/Copernicus (public EU data), Flask, Axum, Folium.
-- **Narrow MVP scope:** v1 does exactly one thing — takes the user's location, downloads Sentinel-2 data for that area, returns a map with LST and NDVI. No institutional refuges, no weather alerting, no cache in v1.
+- **Narrow MVP scope:** v1 does exactly one thing — takes the user's location, downloads Sentinel-2/3 data for that area, returns a map with LST and NDVI. No institutional refuges (no non-satellite data source yet for `climate_shelters`), no weather alerting. Caching (MongoDB `area_analyses` + an optional Valkey fast path) was pulled forward from Phase 3 once the empty-collections gap became apparent in practice.
 
 ---
 

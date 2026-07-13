@@ -19,13 +19,13 @@ def render_map(lat: float, lon: float, radius_m: float, analysis: dict) -> str:
 
     folium.Marker(
         location=[lat, lon],
-        popup=folium.Popup(popup_html, max_width=300),
+        popup=folium.Popup(popup_html, max_width=300, show=True),
     ).add_to(fmap)
 
     folium.Circle(
         location=[lat, lon],
         radius=radius_m,
-        color="#d9534f",
+        color="#3388ff",
         fill=True,
         fill_opacity=0.1,
     ).add_to(fmap)

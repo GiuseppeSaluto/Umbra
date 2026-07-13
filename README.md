@@ -12,7 +12,7 @@ mapping climate refuges — every city does it independently, if at all.
 ## Architecture
 
 ```
-Copernicus API (Sentinel-2)
+Copernicus API (Sentinel-2 + Sentinel-3)
       │
       ▼
 ┌───────────────────────────────────┐
@@ -23,8 +23,10 @@ Copernicus API (Sentinel-2)
              ▼
 ┌───────────────────────────────────┐
 │  MongoDB (2dsphere index)          │
+│   area_analyses (query cache)      │
 │   green areas · heat islands       │
-│   climate shelters                 │
+│   climate shelters (not yet - see  │
+│     Status below)                  │
 └────────────┬───────────────────────┘
              │  query
              ▼
@@ -40,9 +42,12 @@ Copernicus API (Sentinel-2)
 └───────────────────────────────────┘
 ```
 
-In Phase 2, a Rust microservice (Axum) takes over raster processing for
-performance. In Phase 3, Valkey caches frequent geospatial queries. Neither is part
-of the MVP — see [Roadmap](#roadmap).
+A Valkey cache sits in front of MongoDB — fast, short-TTL (~15 min), exact-match —
+for the most frequent repeat queries. It's optional and degrades gracefully if
+unavailable: MongoDB's own cache (24h freshness, geospatially fuzzy via `$near`) is
+always there as a fallback before a real Sentinel Hub call. In Phase 2, a Rust
+microservice (Axum) takes over raster processing for performance — not part of the
+MVP, see [Roadmap](#roadmap).
 
 ---
 
@@ -51,9 +56,15 @@ of the MVP — see [Roadmap](#roadmap).
 Phase 1 (MVP) is functional end-to-end against real Sentinel-2/Sentinel-3 data and a
 real MongoDB instance: `GET /` detects the user's location and redirects to `GET /map`,
 which renders a Folium map with an NDVI/heat-island summary for that area; `GET /api/area`
-returns the same analysis as JSON. Results are cached in MongoDB (`area_analyses`, 24h
-freshness window) to avoid redundant Copernicus calls for the same area. `GET /health`
-reports MongoDB connectivity.
+returns the same analysis as JSON. Results are cached (Valkey first if available, then
+MongoDB's `area_analyses`, 24h freshness window) to avoid redundant Copernicus calls for
+the same area. Analyses that qualify are also recorded as real documents in `green_areas`
+(NDVI mean > 0.3) and `heat_islands` (any detected coverage) — queryable via the
+`$near`/`$geoWithin`/`$geoIntersects` filters in `db/mongo.py`. `climate_shelters` stays
+empty for now: its Barcelona-model criteria (free access, AC, drinking water, seating)
+describe a physical place, not something derivable from satellite pixels — it needs a
+separate data source (e.g. OpenStreetMap or manual curation), out of scope for v1 per
+`docs/SPEC.md` section 10. `GET /health` reports MongoDB connectivity.
 
 The project follows a test-first workflow: fixtures and contracts in `tests/conftest.py`
 are defined before the implementation exists. Full specification: [docs/SPEC.md](docs/SPEC.md).
@@ -110,7 +121,7 @@ umbra/
 ├── rust_engine/              # Rust microservice (Axum) — activated in Phase 2
 ├── db/
 │   ├── mongo.py              # MongoDB connection and queries
-│   └── valkey_cache.py       # Valkey cache layer (Phase 3)
+│   └── valkey_cache.py       # Valkey cache layer - fast, optional, in front of Mongo
 ├── map/
 │   └── renderer.py           # Folium map generation — HTML output on /map
 ├── docs/
@@ -171,5 +182,5 @@ full testing philosophy.
 |---|---|
 | 1 — MVP | Sentinel-2 pipeline → heat island map + green areas for a geographic area |
 | 2 — Rust Engine | Replace Python raster processing with a Rust microservice |
-| 3 — Cache | Add Valkey to cache results for already-processed areas |
+| 3 — Cache | Valkey code is in place ahead of schedule (`db/valkey_cache.py`, wired into `api/services/area_service.py`); still needs a running Valkey instance in every deployment target and real-world tuning of the TTL |
 | 4 — Expansions | Heat wave alerting, multi-city coverage, map UX improvements |
