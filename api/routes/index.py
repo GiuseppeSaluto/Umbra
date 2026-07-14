@@ -1,11 +1,14 @@
+"""Landing page (auto-geolocation + manual/place search) and /search (Nominatim)."""
+
 from flask import Blueprint, Response, redirect, request
+
 from api.services.geocoding_service import resolve_place
 
 index_bp = Blueprint("index", __name__)
 
 DEFAULT_RADIUS_M = 500
 
-_LANDING_PAGE_HTML = rf"""<!DOCTYPE html>
+_PAGE_TEMPLATE = r"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -19,13 +22,13 @@ _LANDING_PAGE_HTML = rf"""<!DOCTYPE html>
 </head>
 <body>
   <h1>Umbra</h1>
-  <p id="status">Locating you...</p>
+  <p id="status">{status_text}</p>
 
-  <form id="manual-form" action="/map" method="get" style="display: none;">
-    <p>Location unavailable - enter coordinates manually:</p>
+  <form id="manual-form" action="/map" method="get" style="{manual_form_style}">
+    <p>{manual_form_label}</p>
     <input type="text" inputmode="decimal" pattern="-?[0-9]*\.?[0-9]+" name="lat" placeholder="Latitude (e.g. 44.6471)" required>
     <input type="text" inputmode="decimal" pattern="-?[0-9]*\.?[0-9]+" name="lon" placeholder="Longitude (e.g. 10.9252)" required>
-    <input type="hidden" name="radius_m" value="{DEFAULT_RADIUS_M}">
+    <input type="hidden" name="radius_m" value="{default_radius_m}">
     <button type="submit">View map</button>
   </form>
 
@@ -37,26 +40,49 @@ _LANDING_PAGE_HTML = rf"""<!DOCTYPE html>
     <button type="submit">Search</button>
   </form>
 
-  <script>
+  {geolocation_script}
+</body>
+</html>"""
+
+_GEOLOCATION_SCRIPT = r"""<script>
     navigator.geolocation.getCurrentPosition(
       function (position) {{
         window.location = "/map?lat=" + position.coords.latitude +
                            "&lon=" + position.coords.longitude +
-                           "&radius_m={DEFAULT_RADIUS_M}";
+                           "&radius_m={default_radius_m}";
       }},
       function () {{
         document.getElementById("status").textContent = "Could not detect your location.";
         document.getElementById("manual-form").style.display = "block";
       }}
     );
-  </script>
-</body>
-</html>"""
+  </script>""".format(default_radius_m=DEFAULT_RADIUS_M)
 
 
 @index_bp.route("/", methods=["GET"])
 def index():
-    return Response(_LANDING_PAGE_HTML, mimetype="text/html")
+    # ?search=1 (used by the map page's "New search" link) skips auto-geolocation,
+    # otherwise a returning user just gets bounced straight back to /map.
+    skip_geolocation = request.args.get("search") is not None
+
+    if skip_geolocation:
+        html = _PAGE_TEMPLATE.format(
+            status_text="Where do you want to look?",
+            manual_form_style="display: block;",
+            manual_form_label="Enter coordinates manually:",
+            geolocation_script="",
+            default_radius_m=DEFAULT_RADIUS_M,
+        )
+    else:
+        html = _PAGE_TEMPLATE.format(
+            status_text="Locating you...",
+            manual_form_style="display: none;",
+            manual_form_label="Location unavailable - enter coordinates manually:",
+            geolocation_script=_GEOLOCATION_SCRIPT,
+            default_radius_m=DEFAULT_RADIUS_M,
+        )
+
+    return Response(html, mimetype="text/html")
 
 
 @index_bp.route("/search", methods=["GET"])

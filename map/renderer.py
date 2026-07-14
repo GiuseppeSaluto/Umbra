@@ -17,7 +17,7 @@ GREEN_AREA_COLOR = "#27ae60"
 HEAT_ISLAND_COLOR = "#c0392b"
 
 _NEW_SEARCH_LINK_HTML = """
-<a href="/" style="position: fixed; top: 10px; left: 60px; z-index: 9999;
+<a href="/?search=1" style="position: fixed; top: 10px; left: 60px; z-index: 9999;
    background: white; padding: 6px 14px; border-radius: 4px;
    box-shadow: 0 1px 4px rgba(0,0,0,0.4); text-decoration: none;
    color: #333; font-family: sans-serif; font-size: 14px;">
