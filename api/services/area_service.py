@@ -28,6 +28,9 @@ GREEN_AREA_NDVI_THRESHOLD = 0.3
 # coarse (~1km, see processing/sentinel.py), so a stricter threshold would just
 # hide genuine detections in small query areas.
 HEAT_ISLAND_COVERAGE_THRESHOLD_PCT = 0.0
+# Cap on how many past detections the map shows around a query point - green_areas
+# and heat_islands accumulate one record per qualifying analysis, with no dedup.
+NEARBY_DETECTIONS_LIMIT = 50
 
 
 def get_area_analysis(lat: float, lon: float, radius_m: float) -> dict:
@@ -95,6 +98,22 @@ def _record_heat_island_if_detected(analysis: dict) -> None:
         "heat_island_coverage_pct": heat_pct,
         "detected_at": datetime.now(timezone.utc),
     })
+
+
+def get_nearby_detections(lat: float, lon: float, radius_m: float) -> dict:
+    """Return past green area / heat island detections near (lat, lon), for
+    rendering as map layers (see map/renderer.py). Uses the same $near filter
+    already built/tested for the area_analyses cache lookup.
+    """
+    near_filter = db_mongo.build_near_filter(lat, lon, radius_m=radius_m)
+
+    green_areas = list(
+        db_mongo.get_collection("green_areas").find(near_filter, limit=NEARBY_DETECTIONS_LIMIT)
+    )
+    heat_islands = list(
+        db_mongo.get_collection("heat_islands").find(near_filter, limit=NEARBY_DETECTIONS_LIMIT)
+    )
+    return {"green_areas": green_areas, "heat_islands": heat_islands}
 
 
 def _valkey_cache_key(lat: float, lon: float, radius_m: float) -> str:
