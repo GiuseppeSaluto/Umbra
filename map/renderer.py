@@ -10,9 +10,16 @@ def render_map(lat: float, lon: float, radius_m: float, analysis: dict) -> str:
     """
     fmap = folium.Map(location=[lat, lon], zoom_start=15)
 
+    heat_pct = analysis["heat_island_coverage_pct"]
+    heat_line = (
+        f"Heat island coverage: {heat_pct:.1f}%"
+        if heat_pct is not None
+        else "Heat island coverage: not available (no Sentinel-3 data for this area)"
+    )
+
     popup_html = (
         f"NDVI mean: {analysis['ndvi_mean']:.2f}<br>"
-        f"Heat island coverage: {analysis['heat_island_coverage_pct']:.1f}%<br>"
+        f"{heat_line}<br>"
         f"Acquisition date: {analysis['acquisition_date']}<br>"
         f"Source: {analysis['source']}"
     )

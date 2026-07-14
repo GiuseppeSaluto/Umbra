@@ -29,8 +29,6 @@ def create_app(testing: bool = False) -> Flask:
         app.extensions = getattr(app, "extensions", {})
         app.extensions["mongo"] = mongo
 
-        # Valkey is an optional cache (docs/SPEC.md section 5) - the app must
-        # still run without it, just without the fast-path cache.
         valkey_url = os.getenv("VALKEY_URL", "redis://localhost:6379/0")
         try:
             app.extensions["valkey"] = get_valkey_client(valkey_url)

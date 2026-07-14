@@ -39,7 +39,10 @@ def get_area_analysis(lat: float, lon: float, radius_m: float) -> dict:
     data = sentinel_module.fetch_area_data(lat, lon, radius_m)
 
     ndvi = calculate_ndvi(data["ndvi_b4"], data["ndvi_b8"])
-    heat_pct = heat_island_coverage_pct(data["lst"])
+    # LST can be None when Sentinel-3 SLSTR has no coverage for this area/time
+    # window (processing/sentinel.py) - the analysis still returns, just without
+    # a heat-island reading.
+    heat_pct = heat_island_coverage_pct(data["lst"]) if data["lst"] is not None else None
 
     return {
         "bbox": data["bbox"],
@@ -84,11 +87,12 @@ def _record_green_area_if_detected(analysis: dict) -> None:
 
 
 def _record_heat_island_if_detected(analysis: dict) -> None:
-    if analysis["heat_island_coverage_pct"] <= HEAT_ISLAND_COVERAGE_THRESHOLD_PCT:
+    heat_pct = analysis["heat_island_coverage_pct"]
+    if heat_pct is None or heat_pct <= HEAT_ISLAND_COVERAGE_THRESHOLD_PCT:
         return
     db_mongo.get_collection("heat_islands").insert_one({
         "location": _bbox_to_polygon(analysis["bbox"]),
-        "heat_island_coverage_pct": analysis["heat_island_coverage_pct"],
+        "heat_island_coverage_pct": heat_pct,
         "detected_at": datetime.now(timezone.utc),
     })
 

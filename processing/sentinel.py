@@ -8,6 +8,7 @@ not atmospherically-corrected split-window LST, but it is a defensible proxy for
 relative hot/cool comparison at neighborhood scale).
 """
 
+import logging
 import os
 from datetime import datetime, timedelta, timezone
 
@@ -22,8 +23,11 @@ from sentinelhub import (
     SHConfig,
     bbox_to_dimensions,
 )
+from sentinelhub.exceptions import BaseSentinelHubException
 
 from processing.geo import bbox_from_point, validate_coordinates
+
+logger = logging.getLogger(__name__)
 
 CDSE_BASE_URL = "https://sh.dataspace.copernicus.eu"
 CDSE_TOKEN_URL = "https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token"
@@ -167,8 +171,19 @@ def fetch_area_data(lat: float, lon: float, radius_m: float = 500) -> dict:
         size=bbox_to_dimensions(bbox, resolution=LST_RESOLUTION_M),
         config=config,
     )
-    lst_kelvin = _first_band(lst_request.get_data()[0])
-    lst_celsius = lst_kelvin - 273.15
+    try:
+        lst_band = _first_band(lst_request.get_data()[0])
+        if lst_band.size == 0:
+            raise ValueError("Sentinel-3 SLSTR returned an empty response")
+        lst_celsius = lst_band - 273.15
+        source = "Sentinel-2 L2A + Sentinel-3 SLSTR (brightness temperature approximation)"
+    except (BaseSentinelHubException, ValueError):
+        logger.warning(
+            "Sentinel-3 SLSTR has no LST coverage for this area/time window - "
+            "continuing with NDVI only", exc_info=True
+        )
+        lst_celsius = None
+        source = "Sentinel-2 L2A (Sentinel-3 SLSTR unavailable for this area)"
 
     return {
         "ndvi_b4": b4,
@@ -179,5 +194,5 @@ def fetch_area_data(lat: float, lon: float, radius_m: float = 500) -> dict:
         "cloud_coverage_pct": cloud_coverage_pct,
         "resolution_m_ndvi": NDVI_RESOLUTION_M,
         "resolution_m_lst": LST_RESOLUTION_M,
-        "source": "Sentinel-2 L2A + Sentinel-3 SLSTR (brightness temperature approximation)",
+        "source": source,
     }

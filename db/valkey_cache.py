@@ -7,7 +7,7 @@ api/services/area_service.py::get_area_analysis_cached).
 import json
 import logging
 
-import redis
+import valkey as redis
 
 logger = logging.getLogger(__name__)
 
