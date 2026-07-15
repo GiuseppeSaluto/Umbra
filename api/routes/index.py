@@ -14,33 +14,131 @@ _PAGE_TEMPLATE = r"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Umbra</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
   <style>
-    body {{ font-family: sans-serif; text-align: center; margin-top: 15vh; }}
-    form {{ margin-top: 1.5rem; }}
-    input {{ margin: 0.25rem; padding: 0.4rem; }}
-    hr {{ margin: 2rem auto; width: 200px; }}
+    :root {{
+      --bg: #f4f9f7;
+      --card: #ffffff;
+      --ink: #21302b;
+      --ink-secondary: #5c6b64;
+      --border: #dbeae4;
+      --green: #059488;
+      --blue: #3560a8;
+    }}
+    * {{ box-sizing: border-box; }}
+    body {{
+      font-family: 'Quicksand', system-ui, sans-serif;
+      color: var(--ink);
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg);
+      background-image:
+        radial-gradient(480px circle at 12% 15%, rgba(5, 148, 136, 0.10), transparent 60%),
+        radial-gradient(560px circle at 88% 85%, rgba(53, 96, 168, 0.10), transparent 60%);
+    }}
+    .card {{
+      width: min(92vw, 420px);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      box-shadow: 0 20px 60px rgba(33, 48, 43, 0.10);
+      padding: 2.5rem 2rem;
+      text-align: center;
+    }}
+    h1 {{
+      margin: 0 0 0.25rem;
+      font-size: 1.75rem;
+      font-weight: 700;
+    }}
+    .tagline {{
+      margin: 0 0 1.5rem;
+      color: var(--ink-secondary);
+      font-size: 0.95rem;
+    }}
+    #status {{
+      color: var(--ink-secondary);
+      font-weight: 600;
+      min-height: 1.2em;
+    }}
+    form {{ margin-top: 1rem; }}
+    input {{
+      width: 100%;
+      font-family: inherit;
+      font-size: 0.95rem;
+      color: var(--ink);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 0.7rem 1.1rem;
+      margin: 0.3rem 0;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }}
+    input:focus {{
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px rgba(5, 148, 136, 0.15);
+    }}
+    button {{
+      width: 100%;
+      font-family: inherit;
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: #ffffff;
+      background: var(--green);
+      border: none;
+      border-radius: 999px;
+      padding: 0.75rem 1.1rem;
+      margin-top: 0.5rem;
+      cursor: pointer;
+      transition: transform 0.1s ease, box-shadow 0.15s ease;
+    }}
+    button:hover {{ box-shadow: 0 8px 20px rgba(5, 148, 136, 0.30); transform: translateY(-1px); }}
+    #search-form button {{ background: var(--blue); }}
+    #search-form button:hover {{ box-shadow: 0 8px 20px rgba(53, 96, 168, 0.30); }}
+    p {{ margin: 0 0 0.5rem; font-size: 0.9rem; color: var(--ink-secondary); }}
+    .divider {{
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin: 1.75rem 0 1.25rem;
+      color: var(--ink-secondary);
+      font-size: 0.85rem;
+    }}
+    .divider::before, .divider::after {{
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }}
   </style>
 </head>
 <body>
-  <h1>Umbra</h1>
-  <p id="status">{status_text}</p>
+  <div class="card">
+    <h1>Umbra 🌳</h1>
+    <p class="tagline">Green areas &amp; heat islands, mapped from real satellite data.</p>
+    <p id="status">{status_text}</p>
 
-  <form id="manual-form" action="/map" method="get" style="{manual_form_style}">
-    <p>{manual_form_label}</p>
-    <input type="text" inputmode="decimal" pattern="-?[0-9]*\.?[0-9]+" name="lat" placeholder="Latitude (e.g. 44.6471)" required>
-    <input type="text" inputmode="decimal" pattern="-?[0-9]*\.?[0-9]+" name="lon" placeholder="Longitude (e.g. 10.9252)" required>
-    <input type="hidden" name="radius_m" value="{default_radius_m}">
-    <button type="submit">View map</button>
-  </form>
+    <form id="manual-form" action="/map" method="get" style="{manual_form_style}">
+      <p>{manual_form_label}</p>
+      <input type="text" inputmode="decimal" pattern="-?[0-9]*\.?[0-9]+" name="lat" placeholder="Latitude (e.g. 44.6471)" required>
+      <input type="text" inputmode="decimal" pattern="-?[0-9]*\.?[0-9]+" name="lon" placeholder="Longitude (e.g. 10.9252)" required>
+      <input type="hidden" name="radius_m" value="{default_radius_m}">
+      <button type="submit">View map</button>
+    </form>
 
-  <hr>
+    <div class="divider">or</div>
 
-  <form action="/search" method="get">
-    <p>Or search a place by name:</p>
-    <input type="text" name="place" placeholder="e.g. Modena, Roma, Trapani" required>
-    <button type="submit">Search</button>
-  </form>
+    <form id="search-form" action="/search" method="get">
+      <input type="text" name="place" placeholder="Search a place, e.g. Modena" required>
+      <button type="submit">Search</button>
+    </form>
+  </div>
 
   {geolocation_script}
 </body>

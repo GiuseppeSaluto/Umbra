@@ -10,14 +10,40 @@ import folium
 from folium import Element
 from folium.plugins import Fullscreen, MiniMap
 
-GREEN_AREA_COLOR = "#27ae60"
-HEAT_ISLAND_COLOR = "#c0392b"
+# Validated against the mint page surface (#f4f9f7): CVD separation 12.4 (target 8),
+# normal-vision floor 17.6 (floor 15), both >=3:1 contrast - see the dataviz skill's
+# validate_palette checks. Heat vs. green is a red/green pair, the hardest case for
+# protan vision; the margin holds because green is pulled toward teal rather than
+# pure green. Secondary encoding (tooltips, independently toggleable layers) is
+# already in place, which the skill requires whenever a pair sits below the target.
+HEAT_ISLAND_COLOR = "#cf5836"
+GREEN_AREA_COLOR = "#059488"
+SEARCH_ACCENT_COLOR = "#3560a8"
+
+_MAP_STYLE_HTML = """
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  body, .leaflet-container, .leaflet-popup-content, .leaflet-control {
+    font-family: 'Quicksand', system-ui, sans-serif !important;
+  }
+  .leaflet-control-layers, .leaflet-bar, .leaflet-popup-content-wrapper {
+    border-radius: 14px !important;
+    box-shadow: 0 8px 24px rgba(33, 48, 43, 0.14) !important;
+    border: 1px solid #dbeae4 !important;
+  }
+  .leaflet-popup-tip { box-shadow: none !important; }
+  .leaflet-bar a { border-radius: 10px !important; color: #21302b !important; }
+  .leaflet-control-layers-toggle { border-radius: 10px !important; }
+</style>
+"""
 
 _NEW_SEARCH_LINK_HTML = """
-<a href="/?search=1" style="position: fixed; top: 10px; left: 60px; z-index: 9999;
-   background: white; padding: 6px 14px; border-radius: 4px;
-   box-shadow: 0 1px 4px rgba(0,0,0,0.4); text-decoration: none;
-   color: #333; font-family: sans-serif; font-size: 14px;">
+<a href="/?search=1" style="position: fixed; top: 14px; left: 60px; z-index: 9999;
+   background: #ffffff; padding: 8px 18px; border-radius: 999px;
+   box-shadow: 0 8px 24px rgba(33, 48, 43, 0.14); border: 1px solid #dbeae4;
+   text-decoration: none; color: #21302b; font-family: 'Quicksand', system-ui, sans-serif;
+   font-weight: 600; font-size: 14px;">
   &larr; New search
 </a>
 """
@@ -50,19 +76,25 @@ def _build_search_area_layer(lat: float, lon: float, radius_m: float, analysis: 
         f"Source: {analysis['source']}"
     )
 
-    folium.Marker(
+    folium.CircleMarker(
         location=[lat, lon],
+        radius=9,
         tooltip="Your search location",
         popup=folium.Popup(popup_html, max_width=300, show=True),
-        icon=folium.Icon(color="blue", icon="search", prefix="fa"),
+        color="#ffffff",
+        weight=3,
+        fill=True,
+        fill_color=SEARCH_ACCENT_COLOR,
+        fill_opacity=1,
     ).add_to(layer)
 
     folium.Circle(
         location=[lat, lon],
         radius=radius_m,
-        color="#3388ff",
+        color=SEARCH_ACCENT_COLOR,
+        weight=2,
         fill=True,
-        fill_opacity=0.1,
+        fill_opacity=0.08,
     ).add_to(layer)
 
     return layer
@@ -110,7 +142,7 @@ def render_map(
     with independently toggleable layers for the current search, detected green
     areas, and detected heat islands.
     """
-    fmap = folium.Map(location=[lat, lon], zoom_start=15)
+    fmap = folium.Map(location=[lat, lon], zoom_start=15, tiles="CartoDB Voyager")
 
     _build_search_area_layer(lat, lon, radius_m, analysis).add_to(fmap)
     _build_green_areas_layer(nearby_green_areas or []).add_to(fmap)
@@ -119,6 +151,7 @@ def render_map(
     folium.LayerControl(collapsed=False).add_to(fmap)
     Fullscreen().add_to(fmap)
     MiniMap(toggle_display=True).add_to(fmap)
+    fmap.get_root().header.add_child(Element(_MAP_STYLE_HTML))
     fmap.get_root().html.add_child(Element(_NEW_SEARCH_LINK_HTML))
 
     return fmap.get_root().render()
