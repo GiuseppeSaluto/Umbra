@@ -13,6 +13,12 @@ logger = logging.getLogger(__name__)
 
 REQUIRED_COLLECTIONS = ("green_areas", "heat_islands", "climate_shelters", "area_analyses")
 
+TTL_INDEXES = {
+    "area_analyses": ("computed_at", 24 * 3600),
+    "green_areas": ("detected_at", 90 * 24 * 3600),
+    "heat_islands": ("detected_at", 90 * 24 * 3600),
+}
+
 
 class MongoDBClient:
     """Owns the MongoDB connection for the `umbra` database."""
@@ -44,7 +50,11 @@ class MongoDBClient:
             if name not in existing:
                 self.db.create_collection(name)
                 logger.info("Created MongoDB collection '%s'", name)
-            self.db[name].create_index([("location", "2dsphere")])
+            collection = self.db[name]
+            collection.create_index([("location", "2dsphere")])
+            if name in TTL_INDEXES:
+                field, ttl_seconds = TTL_INDEXES[name]
+                collection.create_index([(field, 1)], expireAfterSeconds=ttl_seconds)
 
     def close(self) -> None:
         if self.client:

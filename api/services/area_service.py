@@ -13,18 +13,10 @@ logger = logging.getLogger(__name__)
 
 # How close a cached analysis's center must be to the requested point to be reused.
 CACHE_PROXIMITY_M = 100
-# NDVI/LST source imagery changes on the order of days (Sentinel-2/3 revisit time),
-# so a cached analysis is considered fresh for this long.
+DETECTION_DEDUP_RADIUS_M = 300
 CACHE_FRESHNESS = timedelta(hours=24)
-# Same NDVI threshold used in processing/ndvi.py's spec (docs/SPEC.md section 8):
-# above this, an area counts as dense vegetation and gets recorded as a green area.
 GREEN_AREA_NDVI_THRESHOLD = 0.3
-# Any detected heat-island pixel coverage is recorded - LST resolution is already
-# coarse (~1km, see processing/sentinel.py), so a stricter threshold would just
-# hide genuine detections in small query areas.
 HEAT_ISLAND_COVERAGE_THRESHOLD_PCT = 0.0
-# Cap on how many past detections the map shows around a query point - green_areas
-# and heat_islands accumulate one record per qualifying analysis, with no dedup.
 NEARBY_DETECTIONS_LIMIT = 50
 
 
@@ -37,9 +29,7 @@ def get_area_analysis(lat: float, lon: float, radius_m: float) -> dict:
     data = sentinel_module.fetch_area_data(lat, lon, radius_m)
 
     ndvi = calculate_ndvi(data["ndvi_b4"], data["ndvi_b8"])
-    # LST can be None when Sentinel-3 SLSTR has no coverage for this area/time
-    # window (processing/sentinel.py) - the analysis still returns, just without
-    # a heat-island reading.
+    
     heat_pct = heat_island_coverage_pct(data["lst"]) if data["lst"] is not None else None
 
     return {
@@ -74,25 +64,36 @@ def _bbox_to_polygon(bbox: dict) -> dict:
     }
 
 
+def _upsert_detection(collection_name: str, bbox: dict, fields: dict) -> None:
+    """Refresh an existing detection near this bbox's center instead of stacking a
+    new, overlapping polygon on top of it every time the same physical area
+    re-qualifies (green_areas/heat_islands had no dedup - every repeat search
+    that crossed the threshold added another record on top of the old ones).
+    """
+    collection = db_mongo.get_collection(collection_name)
+    center_lat = (bbox["min_lat"] + bbox["max_lat"]) / 2
+    center_lon = (bbox["min_lon"] + bbox["max_lon"]) / 2
+    near_filter = db_mongo.build_near_filter(center_lat, center_lon, radius_m=DETECTION_DEDUP_RADIUS_M)
+
+    document = {"location": _bbox_to_polygon(bbox), "detected_at": datetime.now(timezone.utc), **fields}
+    existing = collection.find_one(near_filter)
+    if existing is not None:
+        collection.update_one({"_id": existing["_id"]}, {"$set": document})
+    else:
+        collection.insert_one(document)
+
+
 def _record_green_area_if_detected(analysis: dict) -> None:
     if analysis["ndvi_mean"] <= GREEN_AREA_NDVI_THRESHOLD:
         return
-    db_mongo.get_collection("green_areas").insert_one({
-        "location": _bbox_to_polygon(analysis["bbox"]),
-        "ndvi_mean": analysis["ndvi_mean"],
-        "detected_at": datetime.now(timezone.utc),
-    })
+    _upsert_detection("green_areas", analysis["bbox"], {"ndvi_mean": analysis["ndvi_mean"]})
 
 
 def _record_heat_island_if_detected(analysis: dict) -> None:
     heat_pct = analysis["heat_island_coverage_pct"]
     if heat_pct is None or heat_pct <= HEAT_ISLAND_COVERAGE_THRESHOLD_PCT:
         return
-    db_mongo.get_collection("heat_islands").insert_one({
-        "location": _bbox_to_polygon(analysis["bbox"]),
-        "heat_island_coverage_pct": heat_pct,
-        "detected_at": datetime.now(timezone.utc),
-    })
+    _upsert_detection("heat_islands", analysis["bbox"], {"heat_island_coverage_pct": heat_pct})
 
 
 def get_nearby_detections(lat: float, lon: float, radius_m: float) -> dict:

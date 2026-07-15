@@ -7,15 +7,16 @@ SAMPLE_BBOX = {"min_lon": 10.90, "min_lat": 44.60, "max_lon": 10.95, "max_lat": 
 
 
 def _make_collections():
-    """One distinct MagicMock per collection name - area_analyses defaults to a
-    cache miss (find_one returns None).
+    """One distinct MagicMock per collection name - every collection defaults to
+    find_one returning None (cache miss / no existing detection nearby).
     """
     collections = {
         "area_analyses": MagicMock(),
         "green_areas": MagicMock(),
         "heat_islands": MagicMock(),
     }
-    collections["area_analyses"].find_one.return_value = None
+    for collection in collections.values():
+        collection.find_one.return_value = None
     return collections
 
 
@@ -192,3 +193,87 @@ def test_records_both_when_both_thresholds_are_exceeded(modena_center):
 
     collections["green_areas"].insert_one.assert_called_once()
     collections["heat_islands"].insert_one.assert_called_once()
+
+
+# ----------------------------------------------------------------
+# green_areas / heat_islands dedup - update an existing nearby detection
+# instead of stacking a new overlapping polygon on every re-qualifying search.
+# ----------------------------------------------------------------
+
+def test_updates_existing_green_area_instead_of_inserting_a_duplicate(modena_center):
+    collections = _make_collections()
+    collections["green_areas"].find_one.return_value = {"_id": "existing-green-1", "ndvi_mean": 0.31}
+    analysis = _analysis(ndvi_mean=0.5)
+
+    with _patch_get_collection(collections), \
+         patch("api.services.area_service.get_area_analysis", return_value=analysis):
+        get_area_analysis_cached(modena_center["lat"], modena_center["lon"], radius_m=500)
+
+    collections["green_areas"].insert_one.assert_not_called()
+    collections["green_areas"].update_one.assert_called_once()
+    filter_arg, update_arg = collections["green_areas"].update_one.call_args.args
+    assert filter_arg == {"_id": "existing-green-1"}
+    assert update_arg["$set"]["ndvi_mean"] == 0.5
+    assert update_arg["$set"]["location"]["type"] == "Polygon"
+    assert "detected_at" in update_arg["$set"]
+
+
+def test_inserts_a_new_green_area_when_none_is_nearby(modena_center):
+    collections = _make_collections()
+    analysis = _analysis(ndvi_mean=0.5)
+
+    with _patch_get_collection(collections), \
+         patch("api.services.area_service.get_area_analysis", return_value=analysis):
+        get_area_analysis_cached(modena_center["lat"], modena_center["lon"], radius_m=500)
+
+    collections["green_areas"].update_one.assert_not_called()
+    collections["green_areas"].insert_one.assert_called_once()
+
+
+def test_updates_existing_heat_island_instead_of_inserting_a_duplicate(modena_center):
+    collections = _make_collections()
+    collections["heat_islands"].find_one.return_value = {"_id": "existing-heat-1", "heat_island_coverage_pct": 5.0}
+    analysis = _analysis(heat_island_coverage_pct=40.0)
+
+    with _patch_get_collection(collections), \
+         patch("api.services.area_service.get_area_analysis", return_value=analysis):
+        get_area_analysis_cached(modena_center["lat"], modena_center["lon"], radius_m=500)
+
+    collections["heat_islands"].insert_one.assert_not_called()
+    collections["heat_islands"].update_one.assert_called_once()
+    filter_arg, update_arg = collections["heat_islands"].update_one.call_args.args
+    assert filter_arg == {"_id": "existing-heat-1"}
+    assert update_arg["$set"]["heat_island_coverage_pct"] == 40.0
+
+
+def test_green_area_dedup_lookup_uses_a_near_filter_around_the_bbox_center(modena_center):
+    collections = _make_collections()
+    analysis = _analysis(ndvi_mean=0.5, bbox={"min_lon": 10.90, "min_lat": 44.60, "max_lon": 10.92, "max_lat": 44.62})
+
+    with _patch_get_collection(collections), \
+         patch("api.services.area_service.get_area_analysis", return_value=analysis):
+        get_area_analysis_cached(modena_center["lat"], modena_center["lon"], radius_m=500)
+
+    query = collections["green_areas"].find_one.call_args.args[0]
+    assert "$near" in query["location"]
+    center = query["location"]["$near"]["$geometry"]["coordinates"]
+    assert center == [10.91, 44.61]
+
+
+def test_detection_dedup_radius_is_wider_than_the_analysis_cache_radius(modena_center):
+    # Regression guard for a real bug: two searches for "Modena" ~138m apart (a
+    # geocoded vs. a manually-entered center) missed the area_analyses cache AND
+    # missed dedup when this radius was equal to CACHE_PROXIMITY_M (100m) - two
+    # near-duplicate polygons got stored. The dedup radius must stay wider.
+    from api.services import area_service
+    assert area_service.DETECTION_DEDUP_RADIUS_M > area_service.CACHE_PROXIMITY_M
+
+    collections = _make_collections()
+    analysis = _analysis(ndvi_mean=0.5)
+
+    with _patch_get_collection(collections), \
+         patch("api.services.area_service.get_area_analysis", return_value=analysis):
+        get_area_analysis_cached(modena_center["lat"], modena_center["lon"], radius_m=500)
+
+    query = collections["green_areas"].find_one.call_args.args[0]
+    assert query["location"]["$near"]["$maxDistance"] == area_service.DETECTION_DEDUP_RADIUS_M
