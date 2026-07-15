@@ -1,5 +1,7 @@
 """Map endpoint - serves a Folium HTML map for a geographic area."""
 
+import asyncio
+
 from flask import Blueprint, Response, request
 
 from api.services.map_service import get_area_map_html
@@ -8,7 +10,7 @@ map_bp = Blueprint("map", __name__)
 
 
 @map_bp.route("/map", methods=["GET"])
-def map_view():
+async def map_view():
     try:
         lat = float(request.args["lat"])
         lon = float(request.args["lon"])
@@ -21,7 +23,7 @@ def map_view():
         )
 
     try:
-        html = get_area_map_html(lat, lon, radius_m)
+        html = await asyncio.to_thread(get_area_map_html, lat, lon, radius_m)
     except ValueError as e:
         return Response(str(e), status=400, mimetype="text/plain")
 

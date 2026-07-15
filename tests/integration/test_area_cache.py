@@ -8,7 +8,7 @@ SAMPLE_BBOX = {"min_lon": 10.90, "min_lat": 44.60, "max_lon": 10.95, "max_lat": 
 
 def _make_collections():
     """One distinct MagicMock per collection name - area_analyses defaults to a
-    cache miss (find_one returns None), matching mock_valkey's "miss by default".
+    cache miss (find_one returns None).
     """
     collections = {
         "area_analyses": MagicMock(),
@@ -192,81 +192,3 @@ def test_records_both_when_both_thresholds_are_exceeded(modena_center):
 
     collections["green_areas"].insert_one.assert_called_once()
     collections["heat_islands"].insert_one.assert_called_once()
-
-
-# ----------------------------------------------------------------
-# Valkey fast-path cache (in front of the MongoDB cache above)
-# ----------------------------------------------------------------
-
-def test_returns_from_valkey_without_touching_mongo_or_computing(modena_center):
-    cached_analysis = _analysis(ndvi_mean=0.5)
-
-    with patch("api.services.area_service.valkey_cache.get_cached_json", return_value=cached_analysis), \
-         patch("db.mongo.get_collection") as fake_get_collection, \
-         patch("api.services.area_service.get_area_analysis") as fake_compute:
-        result = get_area_analysis_cached(modena_center["lat"], modena_center["lon"], radius_m=500)
-
-    assert result == cached_analysis
-    fake_get_collection.assert_not_called()
-    fake_compute.assert_not_called()
-
-
-def test_valkey_miss_falls_through_to_mongo_hit_and_backfills_valkey(modena_center):
-    collections = _make_collections()
-    cached_doc = {"analysis": _analysis(ndvi_mean=0.5), "radius_m": 500}
-    collections["area_analyses"].find_one.return_value = cached_doc
-
-    with patch("api.services.area_service.valkey_cache.get_cached_json", return_value=None), \
-         patch("api.services.area_service.valkey_cache.set_cached_json") as fake_set, \
-         _patch_get_collection(collections), \
-         patch("api.services.area_service.get_area_analysis") as fake_compute:
-        result = get_area_analysis_cached(modena_center["lat"], modena_center["lon"], radius_m=500)
-
-    assert result == cached_doc["analysis"]
-    fake_compute.assert_not_called()
-    fake_set.assert_called_once()
-    key, value = fake_set.call_args.args
-    assert value == cached_doc["analysis"]
-
-
-def test_full_cache_miss_populates_both_valkey_and_mongo(modena_center):
-    collections = _make_collections()
-    fresh_analysis = _analysis()
-
-    with patch("api.services.area_service.valkey_cache.get_cached_json", return_value=None), \
-         patch("api.services.area_service.valkey_cache.set_cached_json") as fake_set, \
-         _patch_get_collection(collections), \
-         patch("api.services.area_service.get_area_analysis", return_value=fresh_analysis):
-        result = get_area_analysis_cached(modena_center["lat"], modena_center["lon"], radius_m=500)
-
-    assert result == fresh_analysis
-    collections["area_analyses"].insert_one.assert_called_once()
-    fake_set.assert_called_once_with(
-        f"area:{modena_center['lat']}:{modena_center['lon']}:500", fresh_analysis, ttl_seconds=900
-    )
-
-
-def test_valkey_read_failure_degrades_to_mongo_instead_of_raising(modena_center):
-    collections = _make_collections()
-
-    with patch("api.services.area_service.valkey_cache.get_cached_json", side_effect=ConnectionError("down")), \
-         patch("api.services.area_service.valkey_cache.set_cached_json"), \
-         _patch_get_collection(collections), \
-         patch("api.services.area_service.get_area_analysis", return_value=_analysis()) as fake_compute:
-        result = get_area_analysis_cached(modena_center["lat"], modena_center["lon"], radius_m=500)
-
-    fake_compute.assert_called_once()
-    assert result == _analysis()
-
-
-def test_valkey_write_failure_does_not_break_the_response(modena_center):
-    collections = _make_collections()
-    fresh_analysis = _analysis()
-
-    with patch("api.services.area_service.valkey_cache.get_cached_json", return_value=None), \
-         patch("api.services.area_service.valkey_cache.set_cached_json", side_effect=ConnectionError("down")), \
-         _patch_get_collection(collections), \
-         patch("api.services.area_service.get_area_analysis", return_value=fresh_analysis):
-        result = get_area_analysis_cached(modena_center["lat"], modena_center["lon"], radius_m=500)
-
-    assert result == fresh_analysis

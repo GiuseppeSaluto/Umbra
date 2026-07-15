@@ -2,10 +2,9 @@
 
 NDVI comes from Sentinel-2 L2A (bands B04, B08, 10m resolution). Sentinel-2 has no
 thermal band, so LST is approximated from Sentinel-3 SLSTR's S9 thermal channel
-(brightness temperature, 1000m resolution) - see docs/SPEC.md for the accuracy
-trade-off this implies (see AskUserQuestion discussion: brightness temperature is
-not atmospherically-corrected split-window LST, but it is a defensible proxy for
-relative hot/cool comparison at neighborhood scale).
+(brightness temperature, 1000m resolution) - not atmospherically-corrected
+split-window LST, but a defensible proxy for relative hot/cool comparison at
+neighborhood scale (see docs/SPEC.md section 7).
 """
 
 import logging

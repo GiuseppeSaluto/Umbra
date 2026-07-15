@@ -1,5 +1,7 @@
 """Area analysis endpoint - NDVI/LST summary for a geographic area."""
 
+import asyncio
+
 from flask import Blueprint, jsonify, request
 
 from api.services.area_service import get_area_analysis_cached
@@ -8,7 +10,7 @@ area_bp = Blueprint("area", __name__)
 
 
 @area_bp.route("/api/area", methods=["GET"])
-def area():
+async def area():
     try:
         lat = float(request.args["lat"])
         lon = float(request.args["lon"])
@@ -19,7 +21,7 @@ def area():
         }), 400
 
     try:
-        result = get_area_analysis_cached(lat, lon, radius_m)
+        result = await asyncio.to_thread(get_area_analysis_cached, lat, lon, radius_m)
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
 

@@ -31,7 +31,7 @@ Copernicus API (Sentinel-2 + Sentinel-3)
              │  query
              ▼
 ┌───────────────────────────────────┐
-│  Flask REST API                    │  ← orchestration, serves the map
+│  Flask REST API (async views)      │  ← orchestration, serves the map
 │   api/routes · api/services        │
 └────────────┬───────────────────────┘
              │  render
@@ -42,12 +42,11 @@ Copernicus API (Sentinel-2 + Sentinel-3)
 └───────────────────────────────────┘
 ```
 
-A Valkey cache sits in front of MongoDB — fast, short-TTL (~15 min), exact-match —
-for the most frequent repeat queries. It's optional and degrades gracefully if
-unavailable: MongoDB's own cache (24h freshness, geospatially fuzzy via `$near`) is
-always there as a fallback before a real Sentinel Hub call. In Phase 2, a Rust
-microservice (Axum) takes over raster processing for performance — not part of the
-MVP, see [Roadmap](#roadmap).
+Query results are cached in MongoDB's own `area_analyses` collection (24h
+freshness, geospatially fuzzy via `$near`) before a real Sentinel Hub call is made.
+Route handlers are `async def` and offload the blocking Mongo/Sentinel Hub calls to a
+thread via `asyncio.to_thread`, so one slow Copernicus request doesn't stall other
+in-flight requests on the same worker.
 
 ---
 
@@ -56,18 +55,14 @@ MVP, see [Roadmap](#roadmap).
 Phase 1 (MVP) is functional end-to-end against real Sentinel-2/Sentinel-3 data and a
 real MongoDB instance: `GET /` detects the user's location and redirects to `GET /map`,
 which renders a Folium map with an NDVI/heat-island summary for that area; `GET /api/area`
-returns the same analysis as JSON. Results are cached (Valkey first if available, then
-MongoDB's `area_analyses`, 24h freshness window) to avoid redundant Copernicus calls for
-the same area. Analyses that qualify are also recorded as real documents in `green_areas`
-(NDVI mean > 0.3) and `heat_islands` (any detected coverage) — queryable via the
-`$near`/`$geoWithin`/`$geoIntersects` filters in `db/mongo.py`. `climate_shelters` stays
-empty for now: its Barcelona-model criteria (free access, AC, drinking water, seating)
-describe a physical place, not something derivable from satellite pixels — it needs a
-separate data source (e.g. OpenStreetMap or manual curation), out of scope for v1 per
-`docs/SPEC.md` section 10. `GET /health` reports MongoDB connectivity.
+returns the same analysis as JSON; `GET /health` reports MongoDB connectivity. Results are
+cached in MongoDB's `area_analyses` (24h freshness) and qualifying analyses are recorded
+in `green_areas`/`heat_islands`, queryable via `$near`/`$geoWithin`/`$geoIntersects`.
+`climate_shelters` stays empty — its Barcelona-model criteria (free access, AC, drinking
+water, seating) describe a physical place, not something derivable from satellite pixels;
+it needs a separate data source, out of scope for v1.
 
-The project follows a test-first workflow: fixtures and contracts in `tests/conftest.py`
-are defined before the implementation exists. Full specification: [docs/SPEC.md](docs/SPEC.md).
+Full specification: [docs/SPEC.md](docs/SPEC.md).
 
 ---
 
@@ -118,10 +113,8 @@ umbra/
 │   ├── ndvi.py               # NDVI computation from Sentinel-2 bands
 │   ├── heat.py               # LST / heat island computation
 │   └── geo.py                 # Coordinate validation, distance, bounding box
-├── rust_engine/              # Rust microservice (Axum) — activated in Phase 2
 ├── db/
-│   ├── mongo.py              # MongoDB connection and queries
-│   └── valkey_cache.py       # Valkey cache layer - fast, optional, in front of Mongo
+│   └── mongo.py              # MongoDB connection and queries
 ├── map/
 │   └── renderer.py           # Folium map generation — HTML output on /map
 ├── docs/
@@ -152,8 +145,6 @@ Config is split across two files, loaded in this order by `api/app.py`:
 | Variable | Required | Description |
 |---|---|---|
 | `MONGO_URI` | No | MongoDB connection string, host only — database name is `umbra`, set in code (default: `mongodb://localhost:27017`) |
-| `VALKEY_URL` | No | Valkey connection string — used from Phase 3 onward |
-| `RUST_ENGINE_URL` | No | Rust engine base URL — used from Phase 2 onward |
 | `FLASK_ENV` | No | `development` or `production` |
 
 ---
@@ -164,23 +155,6 @@ Config is split across two files, loaded in this order by `api/app.py`:
 pytest
 ```
 
-Three levels, all defined in `tests/`:
-
-- **Unit** — pure functions, zero external dependencies (NDVI range, LST consistency).
-- **Integration** — Flask + MongoDB together, with services mocked.
-- **Contract** — verifies the data format handed between `processing/` and `api/services/`.
-
-No real external service (Copernicus, MongoDB, Valkey) is ever contacted during tests —
-everything is mocked via fixtures in `tests/conftest.py`. See `docs/SPEC.md` §11 for the
-full testing philosophy.
-
----
-
-## Roadmap
-
-| Phase | Goal |
-|---|---|
-| 1 — MVP | Sentinel-2 pipeline → heat island map + green areas for a geographic area |
-| 2 — Rust Engine | Replace Python raster processing with a Rust microservice |
-| 3 — Cache | Valkey code is in place ahead of schedule (`db/valkey_cache.py`, wired into `api/services/area_service.py`); still needs a running Valkey instance in every deployment target and real-world tuning of the TTL |
-| 4 — Expansions | Heat wave alerting, multi-city coverage, map UX improvements |
+Three levels in `tests/` — unit, integration, contract — all mocked via fixtures in
+`tests/conftest.py`; no real external service is ever contacted. Full testing philosophy:
+[docs/SPEC.md](docs/SPEC.md).

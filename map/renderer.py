@@ -1,12 +1,9 @@
 """Folium map generation - HTML output served by Flask on /map.
 
-Three independently toggleable layers (folium.LayerControl), matching the
-green/heat/refuge separation discussed for Umbra: overlaying NDVI (10m) and LST
-(1km) detail in a single blended view would imply a precision the data doesn't
-have (see docs/SPEC.md section 8 and processing/sentinel.py). Green areas and
-heat islands are rendered as their own real detected polygons, not just the
-current search circle - giving a visible purpose to the green_areas/heat_islands
-collections that api/services/area_service.py already populates.
+Three independently toggleable layers (folium.LayerControl): blending NDVI (10m)
+and LST (1km) into a single view would imply a precision the data doesn't have
+(see docs/SPEC.md section 7). Green areas and heat islands render as their own
+detected polygons, not just the current search circle.
 """
 
 import folium

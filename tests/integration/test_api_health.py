@@ -33,7 +33,7 @@ def test_health_endpoint_ok_when_mongo_reachable(client):
     assert response.get_json() == {"status": "ok", "mongo": "connected"}
 
 
-def test_health_endpoint_503_when_mongo_unreachable(app, mock_valkey, mock_sentinel):
+def test_health_endpoint_503_when_mongo_unreachable(app, mock_sentinel):
     with patch("db.mongo.get_collection", side_effect=RuntimeError("not connected")):
         response = app.test_client().get("/health")
         assert response.status_code == 503

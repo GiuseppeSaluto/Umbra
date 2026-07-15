@@ -134,7 +134,7 @@ def mock_mongo_collection():
     ]
 
     collection.find.return_value = iter(sample_docs)
-    collection.find_one.return_value = None  # cache miss by default, mirrors mock_valkey
+    collection.find_one.return_value = None  # cache miss by default
     collection.insert_one.return_value = MagicMock(inserted_id="new_doc_id")
     collection.count_documents.return_value = len(sample_docs)
     return collection
@@ -145,37 +145,6 @@ def mock_mongo(mock_mongo_collection):
     """Full PyMongo patch for integration tests."""
     with patch("db.mongo.get_collection", return_value=mock_mongo_collection):
         yield mock_mongo_collection
-
-
-# ----------------------------------------------------------------
-# FIXTURE: Valkey mock
-# ----------------------------------------------------------------
-
-@pytest.fixture
-def mock_valkey():
-    """Mocked Valkey client - simulates a cache miss by default."""
-    client = MagicMock()
-    client.get.return_value = None   # cache miss by default
-    client.set.return_value = True
-    client.delete.return_value = 1
-    client.exists.return_value = 0
-
-    with patch("db.valkey_cache.get_client", return_value=client):
-        yield client
-
-
-@pytest.fixture
-def mock_valkey_hit(mock_valkey):
-    """Valkey with a cache hit - returns pre-serialized data."""
-    import json
-    cached = json.dumps({
-        "type": "FeatureCollection",
-        "features": [],
-        "cached": True,
-        "cache_ts": datetime.now(timezone.utc).isoformat(),
-    })
-    mock_valkey.get.return_value = cached.encode()
-    return mock_valkey
 
 
 # ----------------------------------------------------------------
@@ -204,13 +173,12 @@ def app():
     application.config.update({
         "TESTING": True,
         "MONGO_URI": "mongodb://localhost:27017/umbra_test",
-        "VALKEY_URL": "redis://localhost:6379/1",
     })
     return application
 
 
 @pytest.fixture
-def client(app, mock_mongo, mock_valkey, mock_sentinel):
+def client(app, mock_mongo, mock_sentinel):
     """Flask HTTP client with all services mocked."""
     return app.test_client()
 

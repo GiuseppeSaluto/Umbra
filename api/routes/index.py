@@ -1,5 +1,7 @@
 """Landing page (auto-geolocation + manual/place search) and /search (Nominatim)."""
 
+import asyncio
+
 from flask import Blueprint, Response, redirect, request
 
 from api.services.geocoding_service import resolve_place
@@ -86,10 +88,10 @@ def index():
 
 
 @index_bp.route("/search", methods=["GET"])
-def search():
+async def search():
     place = request.args.get("place", "")
     try:
-        result = resolve_place(place)
+        result = await asyncio.to_thread(resolve_place, place)
     except ValueError as e:
         return Response(f"Could not find that place: {e}", status=400, mimetype="text/plain")
 
