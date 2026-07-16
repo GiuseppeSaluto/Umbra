@@ -12,7 +12,7 @@ def test_get_area_analysis_returns_expected_keys(mock_sentinel, modena_center):
     result = get_area_analysis(modena_center["lat"], modena_center["lon"], radius_m=500)
     assert set(result.keys()) == {
         "bbox", "ndvi_mean", "ndvi_min", "ndvi_max",
-        "heat_island_coverage_pct", "acquisition_date",
+        "heat_island_coverage_pct", "green_bbox", "heat_bbox", "acquisition_date",
         "cloud_coverage_pct", "resolution_m_ndvi", "resolution_m_lst", "source",
     }
 

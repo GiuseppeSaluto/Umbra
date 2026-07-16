@@ -5,8 +5,8 @@ from datetime import datetime, timedelta, timezone
 
 import db.mongo as db_mongo
 import processing.sentinel as sentinel_module
-from processing.geo import validate_coordinates
-from processing.heat import heat_island_coverage_pct
+from processing.geo import bbox_of_mask, validate_coordinates
+from processing.heat import heat_island_coverage_pct, is_heat_island
 from processing.ndvi import calculate_ndvi
 
 logger = logging.getLogger(__name__)
@@ -29,8 +29,10 @@ def get_area_analysis(lat: float, lon: float, radius_m: float) -> dict:
     data = sentinel_module.fetch_area_data(lat, lon, radius_m)
 
     ndvi = calculate_ndvi(data["ndvi_b4"], data["ndvi_b8"])
-    
     heat_pct = heat_island_coverage_pct(data["lst"]) if data["lst"] is not None else None
+
+    green_bbox = bbox_of_mask(ndvi > GREEN_AREA_NDVI_THRESHOLD, data["bbox"])
+    heat_bbox = bbox_of_mask(is_heat_island(data["lst"]), data["bbox"]) if data["lst"] is not None else None
 
     return {
         "bbox": data["bbox"],
@@ -38,6 +40,8 @@ def get_area_analysis(lat: float, lon: float, radius_m: float) -> dict:
         "ndvi_min": float(ndvi.min()),
         "ndvi_max": float(ndvi.max()),
         "heat_island_coverage_pct": heat_pct,
+        "green_bbox": green_bbox,
+        "heat_bbox": heat_bbox,
         "acquisition_date": data["acquisition_date"].isoformat(),
         "cloud_coverage_pct": data["cloud_coverage_pct"],
         "resolution_m_ndvi": data["resolution_m_ndvi"],
@@ -86,14 +90,16 @@ def _upsert_detection(collection_name: str, bbox: dict, fields: dict) -> None:
 def _record_green_area_if_detected(analysis: dict) -> None:
     if analysis["ndvi_mean"] <= GREEN_AREA_NDVI_THRESHOLD:
         return
-    _upsert_detection("green_areas", analysis["bbox"], {"ndvi_mean": analysis["ndvi_mean"]})
+    bbox = analysis["green_bbox"] or analysis["bbox"]
+    _upsert_detection("green_areas", bbox, {"ndvi_mean": analysis["ndvi_mean"]})
 
 
 def _record_heat_island_if_detected(analysis: dict) -> None:
     heat_pct = analysis["heat_island_coverage_pct"]
     if heat_pct is None or heat_pct <= HEAT_ISLAND_COVERAGE_THRESHOLD_PCT:
         return
-    _upsert_detection("heat_islands", analysis["bbox"], {"heat_island_coverage_pct": heat_pct})
+    bbox = analysis["heat_bbox"] or analysis["bbox"]
+    _upsert_detection("heat_islands", bbox, {"heat_island_coverage_pct": heat_pct})
 
 
 def get_nearby_detections(lat: float, lon: float, radius_m: float) -> dict:

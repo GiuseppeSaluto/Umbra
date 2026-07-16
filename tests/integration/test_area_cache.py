@@ -24,12 +24,17 @@ def _patch_get_collection(collections):
     return patch("db.mongo.get_collection", side_effect=lambda name: collections[name])
 
 
-def _analysis(ndvi_mean=0.1, heat_island_coverage_pct=0.0, bbox=None):
-    """A minimal analysis dict below both recording thresholds by default."""
+def _analysis(ndvi_mean=0.1, heat_island_coverage_pct=0.0, bbox=None, green_bbox=None, heat_bbox=None):
+    """A minimal analysis dict below both recording thresholds by default.
+    green_bbox/heat_bbox default to None, same as when nothing qualifies at the
+    pixel level - _record_*_if_detected then falls back to the full search bbox.
+    """
     return {
         "bbox": bbox or SAMPLE_BBOX,
         "ndvi_mean": ndvi_mean,
         "heat_island_coverage_pct": heat_island_coverage_pct,
+        "green_bbox": green_bbox,
+        "heat_bbox": heat_bbox,
     }
 
 
@@ -144,6 +149,20 @@ def test_records_green_area_when_ndvi_mean_exceeds_threshold(modena_center):
     assert stored["ndvi_mean"] == 0.45
     assert stored["location"]["type"] == "Polygon"
     assert "detected_at" in stored
+
+
+def test_records_green_area_using_the_tight_bbox_when_available(modena_center):
+    tight_bbox = {"min_lon": 10.915, "min_lat": 44.605, "max_lon": 10.92, "max_lat": 44.61}
+    collections = _make_collections()
+    analysis = _analysis(ndvi_mean=0.45, bbox=SAMPLE_BBOX, green_bbox=tight_bbox)
+
+    with _patch_get_collection(collections), \
+         patch("api.services.area_service.get_area_analysis", return_value=analysis):
+        get_area_analysis_cached(modena_center["lat"], modena_center["lon"], radius_m=500)
+
+    stored = collections["green_areas"].insert_one.call_args.args[0]
+    assert stored["location"] == _bbox_to_polygon(tight_bbox)
+    assert stored["location"] != _bbox_to_polygon(SAMPLE_BBOX)
 
 
 def test_does_not_record_green_area_when_ndvi_mean_at_or_below_threshold(modena_center):
