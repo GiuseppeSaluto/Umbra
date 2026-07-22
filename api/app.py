@@ -7,11 +7,11 @@ from flask import Flask
 from flask_cors import CORS
 
 from api.extensions import limiter
-from db.mongo import get_client as get_mongo_client
-from api.routes.health import health_bp
 from api.routes.area import area_bp
-from api.routes.map import map_bp
+from api.routes.health import health_bp
 from api.routes.index import index_bp
+from api.routes.map import map_bp
+from db.mongo import get_client as get_mongo_client
 
 logger = logging.getLogger(__name__)
 

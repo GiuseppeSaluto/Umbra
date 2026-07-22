@@ -158,3 +158,16 @@ pytest
 Three levels in `tests/` — unit, integration, contract — all mocked via fixtures in
 `tests/conftest.py`; no real external service is ever contacted. Full testing philosophy:
 [docs/SPEC.md](docs/SPEC.md).
+
+## Code quality
+
+```bash
+pip install -r requirements-dev.txt
+
+ruff check .            # lint
+ruff format --check .   # formatting (drop --check to auto-format)
+mypy .                  # type check
+```
+
+All three run in CI (`.github/workflows/ci.yml`) as a separate `lint` job, alongside the
+test suite.

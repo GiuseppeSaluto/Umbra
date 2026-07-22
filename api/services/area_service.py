@@ -58,13 +58,15 @@ def _bbox_to_polygon(bbox: dict) -> dict:
     max_lon, max_lat = bbox["max_lon"], bbox["max_lat"]
     return {
         "type": "Polygon",
-        "coordinates": [[
-            [min_lon, min_lat],
-            [max_lon, min_lat],
-            [max_lon, max_lat],
-            [min_lon, max_lat],
-            [min_lon, min_lat],
-        ]],
+        "coordinates": [
+            [
+                [min_lon, min_lat],
+                [max_lon, min_lat],
+                [max_lon, max_lat],
+                [min_lon, max_lat],
+                [min_lon, min_lat],
+            ]
+        ],
     }
 
 
@@ -104,12 +106,8 @@ def get_nearby_detections(lat: float, lon: float, radius_m: float) -> dict:
     """
     near_filter = db_mongo.build_near_filter(lat, lon, radius_m=radius_m)
 
-    green_areas = list(
-        db_mongo.get_collection("green_areas").find(near_filter, limit=NEARBY_DETECTIONS_LIMIT)
-    )
-    heat_islands = list(
-        db_mongo.get_collection("heat_islands").find(near_filter, limit=NEARBY_DETECTIONS_LIMIT)
-    )
+    green_areas = list(db_mongo.get_collection("green_areas").find(near_filter, limit=NEARBY_DETECTIONS_LIMIT))
+    heat_islands = list(db_mongo.get_collection("heat_islands").find(near_filter, limit=NEARBY_DETECTIONS_LIMIT))
     return {"green_areas": green_areas, "heat_islands": heat_islands}
 
 
@@ -129,12 +127,14 @@ def get_area_analysis_cached(lat: float, lon: float, radius_m: float) -> dict:
         return cached["analysis"]
 
     analysis = get_area_analysis(lat, lon, radius_m)
-    collection.insert_one({
-        "location": {"type": "Point", "coordinates": [lon, lat]},
-        "radius_m": radius_m,
-        "analysis": analysis,
-        "computed_at": datetime.now(timezone.utc),
-    })
+    collection.insert_one(
+        {
+            "location": {"type": "Point", "coordinates": [lon, lat]},
+            "radius_m": radius_m,
+            "analysis": analysis,
+            "computed_at": datetime.now(timezone.utc),
+        }
+    )
     _record_green_area_if_detected(analysis)
     _record_heat_island_if_detected(analysis)
     return analysis

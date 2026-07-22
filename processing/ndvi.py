@@ -13,9 +13,7 @@ def calculate_ndvi(b4: np.ndarray, b8: np.ndarray) -> np.ndarray:
     are resolved to 0 instead of raising a division-by-zero error.
     """
     if b4.shape != b8.shape:
-        raise ValueError(
-            f"b4 and b8 must have the same shape, got {b4.shape} and {b8.shape}"
-        )
+        raise ValueError(f"b4 and b8 must have the same shape, got {b4.shape} and {b8.shape}")
 
     denominator = b8.astype(np.float64) + b4.astype(np.float64)
     denominator = np.where(denominator == 0, np.finfo(np.float64).eps, denominator)

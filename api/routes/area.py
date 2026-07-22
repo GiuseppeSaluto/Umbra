@@ -18,9 +18,7 @@ async def area():
         lon = float(request.args["lon"])
         radius_m = float(request.args.get("radius_m", 500))
     except (KeyError, ValueError):
-        return jsonify({
-            "error": "lat and lon are required and must be numeric; radius_m must be numeric"
-        }), 400
+        return jsonify({"error": "lat and lon are required and must be numeric; radius_m must be numeric"}), 400
 
     try:
         result = await asyncio.to_thread(get_area_analysis_cached, lat, lon, radius_m)

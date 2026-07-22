@@ -7,6 +7,31 @@ on:
     branches: [main]
 
 jobs:
+  lint:
+    name: Lint & type check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Run ruff check
+        run: ruff check .
+
+      - name: Run ruff format --check
+        run: ruff format --check .
+
+      - name: Run mypy
+        run: mypy .
+
   python-tests:
     name: Python test suite
     runs-on: ubuntu-latest

@@ -1,7 +1,8 @@
 """Health checks for external dependencies."""
 
-import db.mongo as db_mongo
 from pymongo.errors import PyMongoError
+
+import db.mongo as db_mongo
 
 
 def check_mongo_connectivity() -> bool:

@@ -10,9 +10,10 @@ _PRECISE_CLASS = "place"
 
 def geocode(place: str) -> dict | None:
     """Return {"lat", "lon", "display_name"} for the best match, or None if not found."""
+    params: dict[str, str | int] = {"q": place, "format": "json", "limit": RESULT_LIMIT}
     response = requests.get(
         NOMINATIM_URL,
-        params={"q": place, "format": "json", "limit": RESULT_LIMIT},
+        params=params,
         headers={"User-Agent": USER_AGENT},
         timeout=REQUEST_TIMEOUT_S,
     )

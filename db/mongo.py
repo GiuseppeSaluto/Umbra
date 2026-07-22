@@ -104,13 +104,7 @@ def build_geo_within_filter(polygon: dict, field: str = "location") -> dict:
     if "coordinates" not in polygon:
         raise ValueError("polygon is missing 'coordinates'")
 
-    return {
-        field: {
-            "$geoWithin": {
-                "$geometry": polygon
-            }
-        }
-    }
+    return {field: {"$geoWithin": {"$geometry": polygon}}}
 
 
 def build_geo_intersects_filter(geometry: dict, field: str = "location") -> dict:
@@ -122,10 +116,4 @@ def build_geo_intersects_filter(geometry: dict, field: str = "location") -> dict
     if "coordinates" not in geometry:
         raise ValueError("geometry is missing 'coordinates'")
 
-    return {
-        field: {
-            "$geoIntersects": {
-                "$geometry": geometry
-            }
-        }
-    }
+    return {field: {"$geoIntersects": {"$geometry": geometry}}}

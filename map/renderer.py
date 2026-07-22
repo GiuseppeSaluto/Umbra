@@ -151,7 +151,9 @@ def render_map(
     folium.LayerControl(collapsed=False).add_to(fmap)
     Fullscreen().add_to(fmap)
     MiniMap(toggle_display=True).add_to(fmap)
-    fmap.get_root().header.add_child(Element(_MAP_STYLE_HTML))
-    fmap.get_root().html.add_child(Element(_NEW_SEARCH_LINK_HTML))
+    # get_root() is typed as the base Element, but folium always returns a Figure
+    # here, which is the subclass that actually has .header/.html.
+    fmap.get_root().header.add_child(Element(_MAP_STYLE_HTML))  # type: ignore[attr-defined]
+    fmap.get_root().html.add_child(Element(_NEW_SEARCH_LINK_HTML))  # type: ignore[attr-defined]
 
     return fmap.get_root().render()

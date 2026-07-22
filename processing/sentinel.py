@@ -13,10 +13,11 @@ from datetime import datetime, timedelta, timezone
 
 import numpy as np
 from sentinelhub import (
-    BBox,
     CRS,
+    BBox,
     DataCollection,
     MimeType,
+    MosaickingOrder,
     SentinelHubCatalog,
     SentinelHubRequest,
     SHConfig,
@@ -131,7 +132,7 @@ def fetch_area_data(lat: float, lon: float, radius_m: float = 500) -> dict:
 
     bbox_dict = bbox_from_point(lat, lon, radius_m)
     bbox = BBox(
-        bbox=[bbox_dict["min_lon"], bbox_dict["min_lat"], bbox_dict["max_lon"], bbox_dict["max_lat"]],
+        bbox=(bbox_dict["min_lon"], bbox_dict["min_lat"], bbox_dict["max_lon"], bbox_dict["max_lat"]),
         crs=CRS.WGS84,
     )
 
@@ -145,11 +146,13 @@ def fetch_area_data(lat: float, lon: float, radius_m: float = 500) -> dict:
 
     ndvi_request = SentinelHubRequest(
         evalscript=_NDVI_EVALSCRIPT,
-        input_data=[SentinelHubRequest.input_data(
-            data_collection=s2_collection,
-            time_interval=time_interval,
-            mosaicking_order="leastCC",
-        )],
+        input_data=[
+            SentinelHubRequest.input_data(
+                data_collection=s2_collection,
+                time_interval=time_interval,
+                mosaicking_order=MosaickingOrder.LEAST_CC,
+            )
+        ],
         responses=[SentinelHubRequest.output_response("default", MimeType.TIFF)],
         bbox=bbox,
         size=bbox_to_dimensions(bbox, resolution=NDVI_RESOLUTION_M),
@@ -160,11 +163,13 @@ def fetch_area_data(lat: float, lon: float, radius_m: float = 500) -> dict:
 
     lst_request = SentinelHubRequest(
         evalscript=_LST_EVALSCRIPT,
-        input_data=[SentinelHubRequest.input_data(
-            data_collection=s3_collection,
-            time_interval=time_interval,
-            mosaicking_order="leastCC",
-        )],
+        input_data=[
+            SentinelHubRequest.input_data(
+                data_collection=s3_collection,
+                time_interval=time_interval,
+                mosaicking_order=MosaickingOrder.LEAST_CC,
+            )
+        ],
         responses=[SentinelHubRequest.output_response("default", MimeType.TIFF)],
         bbox=bbox,
         size=bbox_to_dimensions(bbox, resolution=LST_RESOLUTION_M),
@@ -178,8 +183,7 @@ def fetch_area_data(lat: float, lon: float, radius_m: float = 500) -> dict:
         source = "Sentinel-2 L2A + Sentinel-3 SLSTR (brightness temperature approximation)"
     except (BaseSentinelHubException, ValueError):
         logger.warning(
-            "Sentinel-3 SLSTR has no LST coverage for this area/time window - "
-            "continuing with NDVI only", exc_info=True
+            "Sentinel-3 SLSTR has no LST coverage for this area/time window - continuing with NDVI only", exc_info=True
         )
         lst_celsius = None
         source = "Sentinel-2 L2A (Sentinel-3 SLSTR unavailable for this area)"
