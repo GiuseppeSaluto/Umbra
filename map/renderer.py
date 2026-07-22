@@ -6,6 +6,8 @@ and LST (1km) into a single view would imply a precision the data doesn't have
 detected polygons, not just the current search circle.
 """
 
+from datetime import datetime
+
 import folium
 from folium import Element
 from folium.plugins import Fullscreen, MiniMap
@@ -13,6 +15,10 @@ from folium.plugins import Fullscreen, MiniMap
 HEAT_ISLAND_COLOR = "#cf5836"
 GREEN_AREA_COLOR = "#059488"
 SEARCH_ACCENT_COLOR = "#3560a8"
+
+# Mirrors api.services.area_service.GREEN_AREA_NDVI_THRESHOLD - kept separate
+# since this one only drives the popup's plain-language label.
+_GREEN_AREA_NDVI_THRESHOLD = 0.3
 
 _MAP_STYLE_HTML = """
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -54,22 +60,40 @@ def _heat_island_style(coverage_pct: float) -> dict:
     return {"fillColor": HEAT_ISLAND_COLOR, "color": HEAT_ISLAND_COLOR, "fillOpacity": opacity, "weight": 1}
 
 
+def _describe_green_coverage(ndvi_mean: float) -> str:
+    if ndvi_mean >= _GREEN_AREA_NDVI_THRESHOLD:
+        return "🌳 Green area"
+    if ndvi_mean >= 0:
+        return "🌱 Some vegetation"
+    return "🧱 Mostly paved or built-up"
+
+
+def _describe_heat_risk(heat_pct: float | None) -> str:
+    if heat_pct is None:
+        return "🌡️ Heat data not available here"
+    if heat_pct <= 0:
+        return "✅ No heat island detected here"
+    if heat_pct >= 100:
+        return "🔥 This whole area is a heat island"
+    return f"🔥 Heat island covers {heat_pct:.1f}% of this area"
+
+
 def _build_search_area_layer(
     lat: float, lon: float, radius_m: float, analysis: dict
 ) -> tuple[folium.FeatureGroup, folium.CircleMarker, folium.Circle]:
     layer = folium.FeatureGroup(name="Search area", show=True)
 
-    heat_pct = analysis["heat_island_coverage_pct"]
-    heat_line = (
-        f"Heat island coverage: {heat_pct:.1f}%"
-        if heat_pct is not None
-        else "Heat island coverage: not available (no Sentinel-3 data for this area)"
-    )
+    acquisition_date = datetime.fromisoformat(analysis["acquisition_date"]).strftime("%d %b %Y")
     popup_html = (
-        f"NDVI mean: {analysis['ndvi_mean']:.2f}<br>"
-        f"{heat_line}<br>"
-        f"Acquisition date: {analysis['acquisition_date']}<br>"
-        f"Source: {analysis['source']}"
+        '<div style="font-size: 14px; font-weight: 700; color: #21302b; line-height: 1.6;">'
+        f"{_describe_green_coverage(analysis['ndvi_mean'])}<br>"
+        f"{_describe_heat_risk(analysis['heat_island_coverage_pct'])}"
+        "</div>"
+        '<div style="font-size: 11px; color: #5c6b64; border-top: 1px solid #dbeae4; '
+        'margin-top: 6px; padding-top: 6px;">'
+        f"NDVI {analysis['ndvi_mean']:.2f} &middot; satellite pass on {acquisition_date}<br>"
+        "Data: Sentinel-2 &amp; Sentinel-3 satellites"
+        "</div>"
     )
 
     marker = folium.CircleMarker(
