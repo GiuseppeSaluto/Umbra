@@ -101,7 +101,7 @@ The verification command is single: `pytest`. Green = shipped. Red = not done.
 
 **Integration tests** (`tests/integration/`) — Flask + MongoDB together, with services mocked. They test HTTP endpoints: status code, GeoJSON response schema, search radius compliance, coordinate validation.
 
-**Contract tests** (`tests/contract/`) — verify the boundaries between components. If `processing/` returns a format that `api/services/` doesn't expect, the contract test goes red regardless of how correct each piece of code is on its own. Critical in an AI-generated project where components are written separately.
+**Contract tests** (`tests/contract/`) — verify the boundaries between components. If `processing/` returns a format that `api/services/` doesn't expect, the contract test goes red regardless of how correct each piece of code is on its own.
 
 ### conftest.py — shared fixtures
 

@@ -69,11 +69,6 @@ def _bbox_to_polygon(bbox: dict) -> dict:
 
 
 def _upsert_detection(collection_name: str, bbox: dict, fields: dict) -> None:
-    """Refresh an existing detection near this bbox's center instead of stacking a
-    new, overlapping polygon on top of it every time the same physical area
-    re-qualifies (green_areas/heat_islands had no dedup - every repeat search
-    that crossed the threshold added another record on top of the old ones).
-    """
     collection = db_mongo.get_collection(collection_name)
     center_lat = (bbox["min_lat"] + bbox["max_lat"]) / 2
     center_lon = (bbox["min_lon"] + bbox["max_lon"]) / 2
