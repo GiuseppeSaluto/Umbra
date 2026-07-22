@@ -4,12 +4,14 @@ import asyncio
 
 from flask import Blueprint, jsonify, request
 
+from api.extensions import limiter
 from api.services.area_service import get_area_analysis_cached
 
 area_bp = Blueprint("area", __name__)
 
 
 @area_bp.route("/api/area", methods=["GET"])
+@limiter.limit("20 per minute")
 async def area():
     try:
         lat = float(request.args["lat"])

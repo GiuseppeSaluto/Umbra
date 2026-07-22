@@ -4,12 +4,14 @@ import asyncio
 
 from flask import Blueprint, Response, request
 
+from api.extensions import limiter
 from api.services.map_service import get_area_map_html
 
 map_bp = Blueprint("map", __name__)
 
 
 @map_bp.route("/map", methods=["GET"])
+@limiter.limit("20 per minute")
 async def map_view():
     try:
         lat = float(request.args["lat"])

@@ -4,6 +4,7 @@ import asyncio
 
 from flask import Blueprint, Response, redirect, render_template, request
 
+from api.extensions import limiter
 from api.services.geocoding_service import resolve_place
 
 index_bp = Blueprint("index", __name__)
@@ -24,6 +25,7 @@ def index():
 
 
 @index_bp.route("/search", methods=["GET"])
+@limiter.limit("30 per minute")
 async def search():
     place = request.args.get("place", "")
     try:
