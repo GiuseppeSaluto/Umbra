@@ -2,7 +2,7 @@
 
 import asyncio
 
-from flask import Blueprint, Response, redirect, request
+from flask import Blueprint, Response, redirect, render_template, request
 
 from api.services.geocoding_service import resolve_place
 
@@ -10,179 +10,17 @@ index_bp = Blueprint("index", __name__)
 
 DEFAULT_RADIUS_M = 500
 
-_PAGE_TEMPLATE = r"""<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Umbra</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
-  <style>
-    :root {{
-      --bg: #f4f9f7;
-      --card: #ffffff;
-      --ink: #21302b;
-      --ink-secondary: #5c6b64;
-      --border: #dbeae4;
-      --green: #059488;
-      --blue: #3560a8;
-    }}
-    * {{ box-sizing: border-box; }}
-    body {{
-      font-family: 'Quicksand', system-ui, sans-serif;
-      color: var(--ink);
-      margin: 0;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: var(--bg);
-      background-image:
-        radial-gradient(480px circle at 12% 15%, rgba(5, 148, 136, 0.10), transparent 60%),
-        radial-gradient(560px circle at 88% 85%, rgba(53, 96, 168, 0.10), transparent 60%);
-    }}
-    .card {{
-      width: min(92vw, 420px);
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 24px;
-      box-shadow: 0 20px 60px rgba(33, 48, 43, 0.10);
-      padding: 2.5rem 2rem;
-      text-align: center;
-    }}
-    h1 {{
-      margin: 0 0 0.25rem;
-      font-size: 1.75rem;
-      font-weight: 700;
-    }}
-    .tagline {{
-      margin: 0 0 1.5rem;
-      color: var(--ink-secondary);
-      font-size: 0.95rem;
-    }}
-    #status {{
-      color: var(--ink-secondary);
-      font-weight: 600;
-      min-height: 1.2em;
-    }}
-    form {{ margin-top: 1rem; }}
-    input {{
-      width: 100%;
-      font-family: inherit;
-      font-size: 0.95rem;
-      color: var(--ink);
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      padding: 0.7rem 1.1rem;
-      margin: 0.3rem 0;
-      outline: none;
-      transition: border-color 0.15s ease, box-shadow 0.15s ease;
-    }}
-    input:focus {{
-      border-color: var(--green);
-      box-shadow: 0 0 0 3px rgba(5, 148, 136, 0.15);
-    }}
-    button {{
-      width: 100%;
-      font-family: inherit;
-      font-weight: 700;
-      font-size: 0.95rem;
-      color: #ffffff;
-      background: var(--green);
-      border: none;
-      border-radius: 999px;
-      padding: 0.75rem 1.1rem;
-      margin-top: 0.5rem;
-      cursor: pointer;
-      transition: transform 0.1s ease, box-shadow 0.15s ease;
-    }}
-    button:hover {{ box-shadow: 0 8px 20px rgba(5, 148, 136, 0.30); transform: translateY(-1px); }}
-    #search-form button {{ background: var(--blue); }}
-    #search-form button:hover {{ box-shadow: 0 8px 20px rgba(53, 96, 168, 0.30); }}
-    p {{ margin: 0 0 0.5rem; font-size: 0.9rem; color: var(--ink-secondary); }}
-    .divider {{
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      margin: 1.75rem 0 1.25rem;
-      color: var(--ink-secondary);
-      font-size: 0.85rem;
-    }}
-    .divider::before, .divider::after {{
-      content: "";
-      flex: 1;
-      height: 1px;
-      background: var(--border);
-    }}
-  </style>
-</head>
-<body>
-  <div class="card">
-    <h1>Umbra 🌳</h1>
-    <p class="tagline">Green areas &amp; heat islands, mapped from real satellite data.</p>
-    <p id="status">{status_text}</p>
-
-    <form id="manual-form" action="/map" method="get" style="{manual_form_style}">
-      <p>{manual_form_label}</p>
-      <input type="text" inputmode="decimal" pattern="-?[0-9]*\.?[0-9]+" name="lat" placeholder="Latitude (e.g. 44.6471)" required>
-      <input type="text" inputmode="decimal" pattern="-?[0-9]*\.?[0-9]+" name="lon" placeholder="Longitude (e.g. 10.9252)" required>
-      <input type="hidden" name="radius_m" value="{default_radius_m}">
-      <button type="submit">View map</button>
-    </form>
-
-    <div class="divider">or</div>
-
-    <form id="search-form" action="/search" method="get">
-      <input type="text" name="place" placeholder="Search a place, e.g. Modena" required>
-      <button type="submit">Search</button>
-    </form>
-  </div>
-
-  {geolocation_script}
-</body>
-</html>"""
-
-_GEOLOCATION_SCRIPT = r"""<script>
-    navigator.geolocation.getCurrentPosition(
-      function (position) {{
-        window.location = "/map?lat=" + position.coords.latitude +
-                           "&lon=" + position.coords.longitude +
-                           "&radius_m={default_radius_m}";
-      }},
-      function () {{
-        document.getElementById("status").textContent = "Could not detect your location.";
-        document.getElementById("manual-form").style.display = "block";
-      }}
-    );
-  </script>""".format(default_radius_m=DEFAULT_RADIUS_M)
-
 
 @index_bp.route("/", methods=["GET"])
 def index():
     # ?search=1 (used by the map page's "New search" link) skips auto-geolocation,
     # otherwise a returning user just gets bounced straight back to /map.
     skip_geolocation = request.args.get("search") is not None
-
-    if skip_geolocation:
-        html = _PAGE_TEMPLATE.format(
-            status_text="Where do you want to look?",
-            manual_form_style="display: block;",
-            manual_form_label="Enter coordinates manually:",
-            geolocation_script="",
-            default_radius_m=DEFAULT_RADIUS_M,
-        )
-    else:
-        html = _PAGE_TEMPLATE.format(
-            status_text="Locating you...",
-            manual_form_style="display: none;",
-            manual_form_label="Location unavailable - enter coordinates manually:",
-            geolocation_script=_GEOLOCATION_SCRIPT,
-            default_radius_m=DEFAULT_RADIUS_M,
-        )
-
-    return Response(html, mimetype="text/html")
+    return render_template(
+        "index.html",
+        skip_geolocation=skip_geolocation,
+        default_radius_m=DEFAULT_RADIUS_M,
+    )
 
 
 @index_bp.route("/search", methods=["GET"])
