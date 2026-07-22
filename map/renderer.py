@@ -10,12 +10,6 @@ import folium
 from folium import Element
 from folium.plugins import Fullscreen, MiniMap
 
-# Validated against the mint page surface (#f4f9f7): CVD separation 12.4 (target 8),
-# normal-vision floor 17.6 (floor 15), both >=3:1 contrast - see the dataviz skill's
-# validate_palette checks. Heat vs. green is a red/green pair, the hardest case for
-# protan vision; the margin holds because green is pulled toward teal rather than
-# pure green. Secondary encoding (tooltips, independently toggleable layers) is
-# already in place, which the skill requires whenever a pair sits below the target.
 HEAT_ISLAND_COLOR = "#cf5836"
 GREEN_AREA_COLOR = "#059488"
 SEARCH_ACCENT_COLOR = "#3560a8"
@@ -60,7 +54,9 @@ def _heat_island_style(coverage_pct: float) -> dict:
     return {"fillColor": HEAT_ISLAND_COLOR, "color": HEAT_ISLAND_COLOR, "fillOpacity": opacity, "weight": 1}
 
 
-def _build_search_area_layer(lat: float, lon: float, radius_m: float, analysis: dict) -> folium.FeatureGroup:
+def _build_search_area_layer(
+    lat: float, lon: float, radius_m: float, analysis: dict
+) -> tuple[folium.FeatureGroup, folium.CircleMarker, folium.Circle]:
     layer = folium.FeatureGroup(name="Search area", show=True)
 
     heat_pct = analysis["heat_island_coverage_pct"]
@@ -76,28 +72,30 @@ def _build_search_area_layer(lat: float, lon: float, radius_m: float, analysis: 
         f"Source: {analysis['source']}"
     )
 
-    folium.CircleMarker(
+    marker = folium.CircleMarker(
         location=[lat, lon],
         radius=9,
         tooltip="Your search location",
-        popup=folium.Popup(popup_html, max_width=300, show=True),
+        popup=folium.Popup(popup_html, max_width=300),
         color="#ffffff",
         weight=3,
         fill=True,
         fill_color=SEARCH_ACCENT_COLOR,
         fill_opacity=1,
-    ).add_to(layer)
+    )
+    marker.add_to(layer)
 
-    folium.Circle(
+    circle = folium.Circle(
         location=[lat, lon],
         radius=radius_m,
         color=SEARCH_ACCENT_COLOR,
         weight=2,
         fill=True,
         fill_opacity=0.08,
-    ).add_to(layer)
+    )
+    circle.add_to(layer)
 
-    return layer
+    return layer, marker, circle
 
 
 def _build_green_areas_layer(green_areas: list[dict]) -> folium.FeatureGroup:
@@ -138,22 +136,31 @@ def render_map(
     nearby_green_areas: list[dict] | None = None,
     nearby_heat_islands: list[dict] | None = None,
 ) -> str:
-    """Render a full HTML document: a Folium/Leaflet map centered on (lat, lon),
-    with independently toggleable layers for the current search, detected green
-    areas, and detected heat islands.
-    """
+    """Render a full HTML document: a Folium/Leaflet map centered on (lat, lon)"""
     fmap = folium.Map(location=[lat, lon], zoom_start=15, tiles="CartoDB Voyager")
 
-    _build_search_area_layer(lat, lon, radius_m, analysis).add_to(fmap)
+    search_layer, search_marker, search_circle = _build_search_area_layer(lat, lon, radius_m, analysis)
+    search_layer.add_to(fmap)
     _build_green_areas_layer(nearby_green_areas or []).add_to(fmap)
     _build_heat_islands_layer(nearby_heat_islands or []).add_to(fmap)
 
     folium.LayerControl(collapsed=False).add_to(fmap)
     Fullscreen().add_to(fmap)
     MiniMap(toggle_display=True).add_to(fmap)
-    # get_root() is typed as the base Element, but folium always returns a Figure
-    # here, which is the subclass that actually has .header/.html.
+
     fmap.get_root().header.add_child(Element(_MAP_STYLE_HTML))  # type: ignore[attr-defined]
     fmap.get_root().html.add_child(Element(_NEW_SEARCH_LINK_HTML))  # type: ignore[attr-defined]
+    popup_toggle_js = f"""setTimeout(function() {{
+        var marker = {search_marker.get_name()};
+        var circle = {search_circle.get_name()};
+        function toggle() {{
+            if (marker.isPopupOpen()) {{ marker.closePopup(); }} else {{ marker.openPopup(); }}
+        }}
+        marker.off('click');
+        marker.on('click', toggle);
+        circle.on('click', toggle);
+        marker.openPopup();
+    }}, 0);"""
+    fmap.get_root().script.add_child(Element(popup_toggle_js))  # type: ignore[attr-defined]
 
     return fmap.get_root().render()
