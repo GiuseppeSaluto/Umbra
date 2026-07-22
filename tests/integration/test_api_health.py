@@ -4,10 +4,10 @@ from pymongo.errors import PyMongoError
 
 from api.services.health_service import check_mongo_connectivity
 
-
 # ----------------------------------------------------------------
 # api/services/health_service.py
 # ----------------------------------------------------------------
+
 
 def test_check_mongo_connectivity_true_when_reachable(mock_mongo):
     assert check_mongo_connectivity() is True
@@ -26,6 +26,7 @@ def test_check_mongo_connectivity_false_on_pymongo_error():
 # ----------------------------------------------------------------
 # GET /health
 # ----------------------------------------------------------------
+
 
 def test_health_endpoint_ok_when_mongo_reachable(client):
     response = client.get("/health")

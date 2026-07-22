@@ -1,10 +1,10 @@
-import pytest
 from unittest.mock import MagicMock, patch
 
+import pytest
 from pymongo.errors import PyMongoError
 
 import db.mongo as mongo_module
-from db.mongo import MongoDBClient, get_client, get_collection, REQUIRED_COLLECTIONS, TTL_INDEXES
+from db.mongo import REQUIRED_COLLECTIONS, TTL_INDEXES, MongoDBClient, get_client, get_collection
 
 
 @pytest.fixture(autouse=True)
@@ -39,6 +39,7 @@ def _configure_fake_client(mock_cls, existing_collections=()):
 # MongoDBClient.connect
 # ----------------------------------------------------------------
 
+
 def test_connect_pings_before_selecting_database(mock_mongo_client_class):
     fake_client, fake_db = _configure_fake_client(mock_mongo_client_class)
     client = MongoDBClient("mongodb://fake:27017", db_name="umbra")
@@ -71,8 +72,7 @@ def test_connect_creates_2dsphere_index_on_every_required_collection(mock_mongo_
     client.connect()
 
     for name in REQUIRED_COLLECTIONS:
-        geo_calls = [c for c in fake_db[name].create_index.call_args_list
-                     if c.args[0] == [("location", "2dsphere")]]
+        geo_calls = [c for c in fake_db[name].create_index.call_args_list if c.args[0] == [("location", "2dsphere")]]
         assert len(geo_calls) == 1, f"expected a 2dsphere index on {name}"
 
 
@@ -82,8 +82,11 @@ def test_connect_creates_ttl_index_on_collections_that_expire(mock_mongo_client_
     client.connect()
 
     for name, (field, ttl_seconds) in TTL_INDEXES.items():
-        ttl_calls = [c for c in fake_db[name].create_index.call_args_list
-                     if c.args[0] == [(field, 1)] and c.kwargs.get("expireAfterSeconds") == ttl_seconds]
+        ttl_calls = [
+            c
+            for c in fake_db[name].create_index.call_args_list
+            if c.args[0] == [(field, 1)] and c.kwargs.get("expireAfterSeconds") == ttl_seconds
+        ]
         assert len(ttl_calls) == 1, f"expected a TTL index on {name}.{field} ({ttl_seconds}s)"
 
 
@@ -112,6 +115,7 @@ def test_connect_raises_pymongo_error_on_ping_failure(mock_mongo_client_class):
 # MongoDBClient.close
 # ----------------------------------------------------------------
 
+
 def test_close_closes_the_underlying_client(mock_mongo_client_class):
     fake_client, _ = _configure_fake_client(mock_mongo_client_class)
     client = MongoDBClient("mongodb://fake:27017")
@@ -130,6 +134,7 @@ def test_ensure_collections_raises_if_db_not_set():
 # ----------------------------------------------------------------
 # get_client / get_collection (module-level singleton)
 # ----------------------------------------------------------------
+
 
 def test_get_client_is_a_singleton(mock_mongo_client_class):
     _configure_fake_client(mock_mongo_client_class)

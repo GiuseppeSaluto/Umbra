@@ -16,9 +16,15 @@ from processing.heat import heat_island_coverage_pct
 from processing.ndvi import calculate_ndvi
 
 REQUIRED_SENTINEL_RESPONSE_KEYS = {
-    "ndvi_b4", "ndvi_b8", "lst", "bbox",
-    "acquisition_date", "cloud_coverage_pct",
-    "resolution_m_ndvi", "resolution_m_lst", "source",
+    "ndvi_b4",
+    "ndvi_b8",
+    "lst",
+    "bbox",
+    "acquisition_date",
+    "cloud_coverage_pct",
+    "resolution_m_ndvi",
+    "resolution_m_lst",
+    "source",
 }
 
 REQUIRED_BBOX_KEYS = {"min_lon", "min_lat", "max_lon", "max_lat"}
@@ -78,9 +84,7 @@ def test_get_area_analysis_fails_loudly_if_fetch_area_data_omits_a_required_key(
             get_area_analysis(modena_center["lat"], modena_center["lon"], radius_m=500)
 
 
-def test_get_area_analysis_fails_loudly_if_acquisition_date_is_not_a_datetime(
-    modena_center, sample_sentinel_response
-):
+def test_get_area_analysis_fails_loudly_if_acquisition_date_is_not_a_datetime(modena_center, sample_sentinel_response):
     """A processing/ change that serializes acquisition_date to a string before
     returning it must break loudly too, not silently skip the .isoformat() call.
     """

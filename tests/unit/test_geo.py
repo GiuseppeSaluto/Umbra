@@ -1,12 +1,12 @@
 import numpy as np
 import pytest
 
-from processing.geo import validate_coordinates, haversine_distance_m, bbox_from_point, bbox_of_mask
-
+from processing.geo import bbox_from_point, bbox_of_mask, haversine_distance_m, validate_coordinates
 
 # ----------------------------------------------------------------
 # validate_coordinates
 # ----------------------------------------------------------------
+
 
 def test_validate_coordinates_accepts_valid_point(modena_center):
     validate_coordinates(modena_center["lat"], modena_center["lon"])  # must not raise
@@ -33,10 +33,13 @@ def test_validate_coordinates_rejects_out_of_range_longitude(lon):
 # haversine_distance_m
 # ----------------------------------------------------------------
 
+
 def test_haversine_distance_is_zero_for_identical_points(modena_center):
     d = haversine_distance_m(
-        modena_center["lat"], modena_center["lon"],
-        modena_center["lat"], modena_center["lon"],
+        modena_center["lat"],
+        modena_center["lon"],
+        modena_center["lat"],
+        modena_center["lon"],
     )
     assert d == pytest.approx(0.0, abs=1e-6)
 
@@ -65,6 +68,7 @@ def test_haversine_distance_is_symmetric(modena_center):
 # ----------------------------------------------------------------
 # bbox_from_point
 # ----------------------------------------------------------------
+
 
 def test_bbox_contains_center_point(modena_center):
     bbox = bbox_from_point(modena_center["lat"], modena_center["lon"], radius_m=500)

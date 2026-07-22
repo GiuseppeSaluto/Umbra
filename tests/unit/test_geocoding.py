@@ -3,11 +3,15 @@ from unittest.mock import MagicMock, patch
 from processing.geocoding import geocode
 
 MODENA_PROVINCE = {
-    "lat": "44.5384728", "lon": "10.9359609", "addresstype": "county",
+    "lat": "44.5384728",
+    "lon": "10.9359609",
+    "addresstype": "county",
     "display_name": "Modena, Emilia-Romagna, Italia",
 }
 MODENA_CITY = {
-    "lat": "44.6458885", "lon": "10.9255707", "addresstype": "city",
+    "lat": "44.6458885",
+    "lon": "10.9255707",
+    "addresstype": "city",
     "display_name": "Modena, Emilia-Romagna, Italia",
 }
 
@@ -45,11 +49,17 @@ def test_geocode_falls_back_to_first_result_when_all_are_broad_regions():
 
 def test_geocode_prefers_a_place_node_over_a_same_addresstype_boundary_centroid():
     boundary_centroid = {
-        "lat": "10.0", "lon": "20.0", "class": "boundary", "addresstype": "city",
+        "lat": "10.0",
+        "lon": "20.0",
+        "class": "boundary",
+        "addresstype": "city",
         "display_name": "Example, Region, Country",
     }
     place_node = {
-        "lat": "10.5", "lon": "20.5", "class": "place", "addresstype": "city",
+        "lat": "10.5",
+        "lon": "20.5",
+        "class": "place",
+        "addresstype": "city",
         "display_name": "Example, Region, Country",
     }
     with patch("processing.geocoding.requests.get", return_value=_mock_response([boundary_centroid, place_node])):

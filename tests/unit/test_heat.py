@@ -1,19 +1,19 @@
 import numpy as np
 import pytest
 
-from processing.heat import is_heat_island, heat_island_coverage_pct
+from processing.heat import heat_island_coverage_pct, is_heat_island
 
 
 def test_heat_mask_flags_hot_pixels(sample_lst):
     mask = is_heat_island(sample_lst)
     # sample_lst[0, 2] = 41.8 (paved, hot) - see conftest.py::sample_lst
-    assert mask[0, 2] == True
+    assert mask[0, 2]
 
 
 def test_heat_mask_does_not_flag_cool_pixels(sample_lst):
     mask = is_heat_island(sample_lst)
     # sample_lst[0, 0] = 28.1 (vegetated, cool) - see conftest.py::sample_lst
-    assert mask[0, 0] == False
+    assert not mask[0, 0]
 
 
 def test_heat_mask_shape_and_dtype_match_input(sample_lst):

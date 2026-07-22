@@ -1,11 +1,11 @@
 import pytest
 
-from db.mongo import build_near_filter, build_geo_within_filter, build_geo_intersects_filter
-
+from db.mongo import build_geo_intersects_filter, build_geo_within_filter, build_near_filter
 
 # ----------------------------------------------------------------
 # build_near_filter
 # ----------------------------------------------------------------
+
 
 def test_build_near_filter_structure(modena_center):
     filt = build_near_filter(modena_center["lat"], modena_center["lon"], radius_m=500)
@@ -50,15 +50,10 @@ def test_build_near_filter_uses_custom_field_name(modena_center):
 # build_geo_within_filter
 # ----------------------------------------------------------------
 
+
 def test_build_geo_within_filter_structure(sample_geojson_polygon):
     filt = build_geo_within_filter(sample_geojson_polygon)
-    assert filt == {
-        "location": {
-            "$geoWithin": {
-                "$geometry": sample_geojson_polygon
-            }
-        }
-    }
+    assert filt == {"location": {"$geoWithin": {"$geometry": sample_geojson_polygon}}}
 
 
 def test_build_geo_within_filter_rejects_non_polygon_geometry(sample_geojson_point):
@@ -81,15 +76,10 @@ def test_build_geo_within_filter_uses_custom_field_name(sample_geojson_polygon):
 # build_geo_intersects_filter
 # ----------------------------------------------------------------
 
+
 def test_build_geo_intersects_filter_structure(sample_geojson_polygon):
     filt = build_geo_intersects_filter(sample_geojson_polygon)
-    assert filt == {
-        "location": {
-            "$geoIntersects": {
-                "$geometry": sample_geojson_polygon
-            }
-        }
-    }
+    assert filt == {"location": {"$geoIntersects": {"$geometry": sample_geojson_polygon}}}
 
 
 def test_build_geo_intersects_filter_accepts_point_geometry(sample_geojson_point):

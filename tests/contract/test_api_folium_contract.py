@@ -8,7 +8,10 @@ from api.services.area_service import get_area_analysis
 from map.renderer import render_map
 
 REQUIRED_ANALYSIS_KEYS_FOR_RENDER_MAP = {
-    "ndvi_mean", "heat_island_coverage_pct", "acquisition_date", "source",
+    "ndvi_mean",
+    "heat_island_coverage_pct",
+    "acquisition_date",
+    "source",
 }
 
 
