@@ -12,37 +12,35 @@ import folium
 from folium import Element
 from folium.plugins import Fullscreen, MiniMap
 
-HEAT_ISLAND_COLOR = "#cf5836"
-GREEN_AREA_COLOR = "#059488"
-SEARCH_ACCENT_COLOR = "#3560a8"
+from theme import COLORS
 
 # Mirrors api.services.area_service.GREEN_AREA_NDVI_THRESHOLD - kept separate
 # since this one only drives the popup's plain-language label.
 _GREEN_AREA_NDVI_THRESHOLD = 0.3
 
-_MAP_STYLE_HTML = """
+_MAP_STYLE_HTML = f"""
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
-  body, .leaflet-container, .leaflet-popup-content, .leaflet-control {
+  body, .leaflet-container, .leaflet-popup-content, .leaflet-control {{
     font-family: 'Quicksand', system-ui, sans-serif !important;
-  }
-  .leaflet-control-layers, .leaflet-bar, .leaflet-popup-content-wrapper {
+  }}
+  .leaflet-control-layers, .leaflet-bar, .leaflet-popup-content-wrapper {{
     border-radius: 14px !important;
     box-shadow: 0 8px 24px rgba(33, 48, 43, 0.14) !important;
-    border: 1px solid #dbeae4 !important;
-  }
-  .leaflet-popup-tip { box-shadow: none !important; }
-  .leaflet-bar a { border-radius: 10px !important; color: #21302b !important; }
-  .leaflet-control-layers-toggle { border-radius: 10px !important; }
+    border: 1px solid {COLORS["border"]} !important;
+  }}
+  .leaflet-popup-tip {{ box-shadow: none !important; }}
+  .leaflet-bar a {{ border-radius: 10px !important; color: {COLORS["ink"]} !important; }}
+  .leaflet-control-layers-toggle {{ border-radius: 10px !important; }}
 </style>
 """
 
-_NEW_SEARCH_LINK_HTML = """
+_NEW_SEARCH_LINK_HTML = f"""
 <a href="/?search=1" style="position: fixed; top: 14px; left: 60px; z-index: 9999;
-   background: #ffffff; padding: 8px 18px; border-radius: 999px;
-   box-shadow: 0 8px 24px rgba(33, 48, 43, 0.14); border: 1px solid #dbeae4;
-   text-decoration: none; color: #21302b; font-family: 'Quicksand', system-ui, sans-serif;
+   background: {COLORS["card"]}; padding: 8px 18px; border-radius: 999px;
+   box-shadow: 0 8px 24px rgba(33, 48, 43, 0.14); border: 1px solid {COLORS["border"]};
+   text-decoration: none; color: {COLORS["ink"]}; font-family: 'Quicksand', system-ui, sans-serif;
    font-weight: 600; font-size: 14px;">
   &larr; New search
 </a>
@@ -52,12 +50,12 @@ _NEW_SEARCH_LINK_HTML = """
 def _green_area_style(ndvi_mean: float) -> dict:
     """More opaque fill for higher NDVI - a visual cue, not a precise scale."""
     opacity = min(0.15 + ndvi_mean * 0.5, 0.7)
-    return {"fillColor": GREEN_AREA_COLOR, "color": GREEN_AREA_COLOR, "fillOpacity": opacity, "weight": 1}
+    return {"fillColor": COLORS["green"], "color": COLORS["green"], "fillOpacity": opacity, "weight": 1}
 
 
 def _heat_island_style(coverage_pct: float) -> dict:
     opacity = min(0.15 + (coverage_pct / 100) * 0.6, 0.75)
-    return {"fillColor": HEAT_ISLAND_COLOR, "color": HEAT_ISLAND_COLOR, "fillOpacity": opacity, "weight": 1}
+    return {"fillColor": COLORS["heat"], "color": COLORS["heat"], "fillOpacity": opacity, "weight": 1}
 
 
 def _describe_green_coverage(ndvi_mean: float) -> str:
@@ -84,24 +82,27 @@ def _build_search_area_layer(
     layer = folium.FeatureGroup(name="Search area", show=True)
 
     acquisition_date = datetime.fromisoformat(analysis["acquisition_date"]).strftime("%d %b %Y")
+    green_word = f'<span style="color: {COLORS["green"]}; font-weight: 600;">Vegetation</span>'
+    heat_word = f'<span style="color: {COLORS["heat"]}; font-weight: 600;">heat</span>'
     popup_html = (
-        '<div style="font-size: 14px; font-weight: 700; color: #21302b; line-height: 1.6;">'
+        f'<div style="font-size: 14px; font-weight: 700; color: {COLORS["ink"]}; line-height: 1.6;">'
         f"{_describe_green_coverage(analysis['ndvi_mean'])}<br>"
         f"{_describe_heat_risk(analysis['heat_island_coverage_pct'])}"
         "</div>"
         '<details style="margin-top: 6px;">'
-        '<summary style="font-size: 12px; color: #059488; font-weight: 600; cursor: pointer;">'
+        f'<summary style="font-size: 12px; color: {COLORS["green"]}; font-weight: 600; cursor: pointer;">'
         "Show details</summary>"
-        '<div style="font-size: 12px; color: #21302b; line-height: 1.6; margin-top: 6px;">'
-        f"Vegetation index range: {analysis['ndvi_min']:.2f} to {analysis['ndvi_max']:.2f} "
+        f'<div style="font-size: 12px; color: {COLORS["ink"]}; line-height: 1.6; margin-top: 6px;">'
+        f"{green_word} index range: {analysis['ndvi_min']:.2f} to {analysis['ndvi_max']:.2f} "
         "(higher = greener)<br>"
         f"Cloud cover during satellite pass: {analysis['cloud_coverage_pct']:.0f}%<br>"
-        f"Vegetation is measured at {analysis['resolution_m_ndvi']}m resolution; heat is measured at "
-        f"{analysis['resolution_m_lst']}m resolution, so heat readings cover a much wider, blurrier area."
+        f"{green_word} is measured at {analysis['resolution_m_ndvi']}m resolution; "
+        f"{heat_word} is measured at {analysis['resolution_m_lst']}m resolution, so "
+        f"{heat_word} readings cover a much wider, blurrier area."
         "</div>"
         "</details>"
-        '<div style="font-size: 11px; color: #5c6b64; border-top: 1px solid #dbeae4; '
-        'margin-top: 6px; padding-top: 6px;">'
+        f'<div style="font-size: 11px; color: {COLORS["ink_secondary"]}; '
+        f'border-top: 1px solid {COLORS["border"]}; margin-top: 6px; padding-top: 6px;">'
         f"NDVI {analysis['ndvi_mean']:.2f} &middot; satellite pass on {acquisition_date}<br>"
         "Data: Sentinel-2 &amp; Sentinel-3 satellites"
         "</div>"
@@ -112,10 +113,10 @@ def _build_search_area_layer(
         radius=9,
         tooltip="Your search location",
         popup=folium.Popup(popup_html, max_width=320),
-        color="#ffffff",
+        color=COLORS["card"],
         weight=3,
         fill=True,
-        fill_color=SEARCH_ACCENT_COLOR,
+        fill_color=COLORS["blue"],
         fill_opacity=1,
     )
     marker.add_to(layer)
@@ -123,7 +124,7 @@ def _build_search_area_layer(
     circle = folium.Circle(
         location=[lat, lon],
         radius=radius_m,
-        color=SEARCH_ACCENT_COLOR,
+        color=COLORS["blue"],
         weight=2,
         fill=True,
         fill_opacity=0.08,

@@ -12,6 +12,7 @@ from api.routes.health import health_bp
 from api.routes.index import index_bp
 from api.routes.map import map_bp
 from db.mongo import get_client as get_mongo_client
+from theme import COLORS
 
 logger = logging.getLogger(__name__)
 
@@ -42,5 +43,9 @@ def create_app(testing: bool = False, rate_limiting: bool | None = None) -> Flas
     app.register_blueprint(area_bp)
     app.register_blueprint(map_bp)
     app.register_blueprint(index_bp)
+
+    @app.context_processor
+    def inject_theme() -> dict:
+        return {"colors": COLORS}
 
     return app
