@@ -3,7 +3,7 @@
 Three independently toggleable layers (folium.LayerControl): blending NDVI (10m)
 and LST (1km) into a single view would imply a precision the data doesn't have
 (see docs/SPEC.md section 7). Green areas and heat islands render as their own
-detected polygons, not just the current search circle.
+detected polygons, not just the current search area.
 """
 
 from datetime import datetime
@@ -12,6 +12,7 @@ import folium
 from folium import Element
 from folium.plugins import Fullscreen, MiniMap
 
+from processing.geo import bbox_from_point
 from theme import COLORS
 
 # Mirrors api.services.area_service.GREEN_AREA_NDVI_THRESHOLD - kept separate
@@ -64,16 +65,26 @@ _LEGEND_HTML = f"""
 </div>
 """
 
+_HEAT_HATCH_SVG = f"""
+<svg width="0" height="0" style="position: absolute;">
+  <defs>
+    <pattern id="heat-hatch" width="8" height="8" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+      <rect width="8" height="8" fill="transparent"></rect>
+      <line x1="0" y1="0" x2="0" y2="8" stroke="{COLORS["heat"]}" stroke-width="4"></line>
+    </pattern>
+  </defs>
+</svg>
+"""
+
 
 def _green_area_style(ndvi_mean: float) -> dict:
-    """More opaque fill for higher NDVI - a visual cue, not a precise scale."""
     opacity = min(0.15 + ndvi_mean * 0.5, 0.7)
     return {"fillColor": COLORS["green"], "color": COLORS["green"], "fillOpacity": opacity, "weight": 1}
 
 
 def _heat_island_style(coverage_pct: float) -> dict:
-    opacity = min(0.15 + (coverage_pct / 100) * 0.6, 0.75)
-    return {"fillColor": COLORS["heat"], "color": COLORS["heat"], "fillOpacity": opacity, "weight": 1}
+    opacity = min(0.35 + (coverage_pct / 100) * 0.5, 0.85)
+    return {"fillColor": "url(#heat-hatch)", "color": COLORS["heat"], "fillOpacity": opacity, "weight": 1.5}
 
 
 def _describe_green_coverage(ndvi_mean: float) -> str:
@@ -96,7 +107,7 @@ def _describe_heat_risk(heat_pct: float | None) -> str:
 
 def _build_search_area_layer(
     lat: float, lon: float, radius_m: float, analysis: dict
-) -> tuple[folium.FeatureGroup, folium.CircleMarker, folium.Circle]:
+) -> tuple[folium.FeatureGroup, folium.CircleMarker, folium.Rectangle]:
     layer = folium.FeatureGroup(name="Search area", show=True)
 
     acquisition_date = datetime.fromisoformat(analysis["acquisition_date"]).strftime("%d %b %Y")
@@ -139,17 +150,17 @@ def _build_search_area_layer(
     )
     marker.add_to(layer)
 
-    circle = folium.Circle(
-        location=[lat, lon],
-        radius=radius_m,
+    bbox = bbox_from_point(lat, lon, radius_m)
+    square = folium.Rectangle(
+        bounds=[[bbox["min_lat"], bbox["min_lon"]], [bbox["max_lat"], bbox["max_lon"]]],
         color=COLORS["blue"],
         weight=2,
         fill=True,
         fill_opacity=0.08,
     )
-    circle.add_to(layer)
+    square.add_to(layer)
 
-    return layer, marker, circle
+    return layer, marker, square
 
 
 def _build_green_areas_layer(green_areas: list[dict]) -> folium.FeatureGroup:
@@ -193,7 +204,7 @@ def render_map(
     """Render a full HTML document: a Folium/Leaflet map centered on (lat, lon)"""
     fmap = folium.Map(location=[lat, lon], zoom_start=15, tiles="CartoDB Voyager")
 
-    search_layer, search_marker, search_circle = _build_search_area_layer(lat, lon, radius_m, analysis)
+    search_layer, search_marker, search_square = _build_search_area_layer(lat, lon, radius_m, analysis)
     search_layer.add_to(fmap)
     _build_green_areas_layer(nearby_green_areas or []).add_to(fmap)
     _build_heat_islands_layer(nearby_heat_islands or []).add_to(fmap)
@@ -205,15 +216,16 @@ def render_map(
     fmap.get_root().header.add_child(Element(_MAP_STYLE_HTML))  # type: ignore[attr-defined]
     fmap.get_root().html.add_child(Element(_NEW_SEARCH_LINK_HTML))  # type: ignore[attr-defined]
     fmap.get_root().html.add_child(Element(_LEGEND_HTML))  # type: ignore[attr-defined]
+    fmap.get_root().html.add_child(Element(_HEAT_HATCH_SVG))  # type: ignore[attr-defined]
     popup_toggle_js = f"""setTimeout(function() {{
         var marker = {search_marker.get_name()};
-        var circle = {search_circle.get_name()};
+        var square = {search_square.get_name()};
         function toggle() {{
             if (marker.isPopupOpen()) {{ marker.closePopup(); }} else {{ marker.openPopup(); }}
         }}
         marker.off('click');
         marker.on('click', toggle);
-        circle.on('click', toggle);
+        square.on('click', toggle);
         marker.openPopup();
     }}, 0);"""
     fmap.get_root().script.add_child(Element(popup_toggle_js))  # type: ignore[attr-defined]
