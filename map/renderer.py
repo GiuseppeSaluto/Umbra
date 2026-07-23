@@ -46,6 +46,24 @@ _NEW_SEARCH_LINK_HTML = f"""
 </a>
 """
 
+_LEGEND_HTML = f"""
+<div style="position: fixed; bottom: 24px; left: 14px; z-index: 9999;
+   background: {COLORS["card"]}; padding: 10px 14px; border-radius: 14px;
+   box-shadow: 0 8px 24px rgba(33, 48, 43, 0.14); border: 1px solid {COLORS["border"]};
+   font-family: 'Quicksand', system-ui, sans-serif; font-size: 12px; color: {COLORS["ink"]};">
+  <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+    <span style="width: 10px; height: 10px; border-radius: 50%; display: inline-block;
+       background: {COLORS["green"]};"></span>
+    Vegetation / green area
+  </div>
+  <div style="display: flex; align-items: center; gap: 6px;">
+    <span style="width: 10px; height: 10px; border-radius: 50%; display: inline-block;
+       background: {COLORS["heat"]};"></span>
+    Heat island
+  </div>
+</div>
+"""
+
 
 def _green_area_style(ndvi_mean: float) -> dict:
     """More opaque fill for higher NDVI - a visual cue, not a precise scale."""
@@ -186,6 +204,7 @@ def render_map(
 
     fmap.get_root().header.add_child(Element(_MAP_STYLE_HTML))  # type: ignore[attr-defined]
     fmap.get_root().html.add_child(Element(_NEW_SEARCH_LINK_HTML))  # type: ignore[attr-defined]
+    fmap.get_root().html.add_child(Element(_LEGEND_HTML))  # type: ignore[attr-defined]
     popup_toggle_js = f"""setTimeout(function() {{
         var marker = {search_marker.get_name()};
         var circle = {search_circle.get_name()};
