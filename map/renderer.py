@@ -89,6 +89,17 @@ def _build_search_area_layer(
         f"{_describe_green_coverage(analysis['ndvi_mean'])}<br>"
         f"{_describe_heat_risk(analysis['heat_island_coverage_pct'])}"
         "</div>"
+        '<details style="margin-top: 6px;">'
+        '<summary style="font-size: 12px; color: #059488; font-weight: 600; cursor: pointer;">'
+        "Show details</summary>"
+        '<div style="font-size: 12px; color: #21302b; line-height: 1.6; margin-top: 6px;">'
+        f"Vegetation index range: {analysis['ndvi_min']:.2f} to {analysis['ndvi_max']:.2f} "
+        "(higher = greener)<br>"
+        f"Cloud cover during satellite pass: {analysis['cloud_coverage_pct']:.0f}%<br>"
+        f"Vegetation is measured at {analysis['resolution_m_ndvi']}m resolution; heat is measured at "
+        f"{analysis['resolution_m_lst']}m resolution, so heat readings cover a much wider, blurrier area."
+        "</div>"
+        "</details>"
         '<div style="font-size: 11px; color: #5c6b64; border-top: 1px solid #dbeae4; '
         'margin-top: 6px; padding-top: 6px;">'
         f"NDVI {analysis['ndvi_mean']:.2f} &middot; satellite pass on {acquisition_date}<br>"
@@ -100,7 +111,7 @@ def _build_search_area_layer(
         location=[lat, lon],
         radius=9,
         tooltip="Your search location",
-        popup=folium.Popup(popup_html, max_width=300),
+        popup=folium.Popup(popup_html, max_width=320),
         color="#ffffff",
         weight=3,
         fill=True,
