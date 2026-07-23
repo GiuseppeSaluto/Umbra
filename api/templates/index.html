@@ -114,8 +114,8 @@
 
     <form id="manual-form" action="/map" method="get" {% if skip_geolocation %}style="display: block;"{% else %}style="display: none;"{% endif %}>
       <p>{% if skip_geolocation %}Enter coordinates manually:{% else %}Location unavailable - enter coordinates manually:{% endif %}</p>
-      <input type="text" inputmode="decimal" pattern="-?[0-9]*\.?[0-9]+" name="lat" placeholder="Latitude (e.g. 44.6471)" required>
-      <input type="text" inputmode="decimal" pattern="-?[0-9]*\.?[0-9]+" name="lon" placeholder="Longitude (e.g. 10.9252)" required>
+      <input type="text" inputmode="decimal" pattern="\s*-?[0-9]*[.,]?[0-9]+\s*" name="lat" placeholder="Latitude (e.g. 44.6471)" required>
+      <input type="text" inputmode="decimal" pattern="\s*-?[0-9]*[.,]?[0-9]+\s*" name="lon" placeholder="Longitude (e.g. 10.9252)" required>
       <input type="hidden" name="radius_m" value="{{ default_radius_m }}">
       <button type="submit">View map</button>
     </form>

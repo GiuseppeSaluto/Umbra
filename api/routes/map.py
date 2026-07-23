@@ -5,6 +5,7 @@ import asyncio
 from flask import Blueprint, Response, request
 
 from api.extensions import limiter
+from api.routes._params import parse_float
 from api.services.map_service import get_area_map_html
 
 map_bp = Blueprint("map", __name__)
@@ -14,9 +15,9 @@ map_bp = Blueprint("map", __name__)
 @limiter.limit("20 per minute")
 async def map_view():
     try:
-        lat = float(request.args["lat"])
-        lon = float(request.args["lon"])
-        radius_m = float(request.args.get("radius_m", 500))
+        lat = parse_float(request.args["lat"])
+        lon = parse_float(request.args["lon"])
+        radius_m = parse_float(request.args.get("radius_m", "500"))
     except (KeyError, ValueError):
         return Response(
             "lat and lon are required and must be numeric; radius_m must be numeric",

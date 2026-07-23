@@ -98,3 +98,13 @@ def test_area_endpoint_400_on_non_positive_radius(client, modena_center):
         query_string={"lat": modena_center["lat"], "lon": modena_center["lon"], "radius_m": -10},
     )
     assert response.status_code == 400
+
+
+def test_area_endpoint_accepts_comma_decimal_separator(client, modena_center):
+    response = client.get("/api/area", query_string={"lat": "44,6471", "lon": "10,9252"})
+    assert response.status_code == 200
+
+
+def test_area_endpoint_accepts_surrounding_whitespace(client, modena_center):
+    response = client.get("/api/area", query_string={"lat": " 44.6471 ", "lon": " 10.9252 "})
+    assert response.status_code == 200
