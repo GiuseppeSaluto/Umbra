@@ -114,8 +114,8 @@
 
     <form id="manual-form" action="/map" method="get" {% if skip_geolocation %}style="display: block;"{% else %}style="display: none;"{% endif %}>
       <p>{% if skip_geolocation %}Enter coordinates manually:{% else %}Location unavailable - enter coordinates manually:{% endif %}</p>
-      <input type="text" inputmode="decimal" pattern="\s*-?[0-9]*[.,]?[0-9]+\s*" name="lat" placeholder="Latitude (e.g. 44.6471)" required>
-      <input type="text" inputmode="decimal" pattern="\s*-?[0-9]*[.,]?[0-9]+\s*" name="lon" placeholder="Longitude (e.g. 10.9252)" required>
+      <input type="text" inputmode="decimal" pattern="\s*-?[0-9]*[.,]?[0-9]+\s*" name="lat" id="lat-input" placeholder="Latitude (e.g. 44.6471)" required>
+      <input type="text" inputmode="decimal" pattern="\s*-?[0-9]*[.,]?[0-9]+\s*" name="lon" id="lon-input" placeholder="Longitude (e.g. 10.9252)" required>
       <input type="hidden" name="radius_m" value="{{ default_radius_m }}">
       <button type="submit">View map</button>
     </form>
@@ -127,6 +127,19 @@
       <button type="submit">Search</button>
     </form>
   </div>
+
+  <script>
+    function splitPastedCoordinates(event) {
+      var text = (event.clipboardData || window.clipboardData).getData("text");
+      var match = text.match(/^\s*(-?[0-9]+[.,]?[0-9]*)\s*,\s*(-?[0-9]+[.,]?[0-9]*)\s*$/);
+      if (!match) return;
+      event.preventDefault();
+      document.getElementById("lat-input").value = match[1];
+      document.getElementById("lon-input").value = match[2];
+    }
+    document.getElementById("lat-input").addEventListener("paste", splitPastedCoordinates);
+    document.getElementById("lon-input").addEventListener("paste", splitPastedCoordinates);
+  </script>
 
   {% if not skip_geolocation %}
   <script>

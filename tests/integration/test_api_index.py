@@ -22,3 +22,10 @@ def test_index_has_manual_fallback_form_for_denied_geolocation(client):
     assert 'name="lat"' in html
     assert 'name="lon"' in html
     assert 'name="radius_m"' in html
+
+
+def test_index_splits_pasted_lat_lon_pair_into_both_fields(client):
+    html = client.get("/").get_data(as_text=True)
+    assert "splitPastedCoordinates" in html
+    assert 'getElementById("lat-input")' in html
+    assert 'getElementById("lon-input")' in html
