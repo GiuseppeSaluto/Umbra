@@ -87,8 +87,22 @@
       transition: transform 0.1s ease, box-shadow 0.15s ease;
     }
     button:hover { box-shadow: 0 8px 20px rgba(5, 148, 136, 0.30); transform: translateY(-1px); }
+    button:disabled { opacity: 0.7; cursor: default; transform: none; box-shadow: none; }
     #search-form button { background: var(--blue); }
     #search-form button:hover { box-shadow: 0 8px 20px rgba(53, 96, 168, 0.30); }
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      margin-right: 6px;
+      vertical-align: -2px;
+      border: 2px solid rgba(255, 255, 255, 0.4);
+      border-top-color: #ffffff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    .spinner-dark { border-color: rgba(33, 48, 43, 0.25); border-top-color: var(--ink); }
+    @keyframes spin { to { transform: rotate(360deg); } }
     p { margin: 0 0 0.5rem; font-size: 0.9rem; color: var(--ink-secondary); }
     .divider {
       display: flex;
@@ -139,12 +153,24 @@
     }
     document.getElementById("lat-input").addEventListener("paste", splitPastedCoordinates);
     document.getElementById("lon-input").addEventListener("paste", splitPastedCoordinates);
+
+    function showLoadingState(button, label) {
+      button.disabled = true;
+      button.innerHTML = '<span class="spinner"></span>' + label;
+    }
+    document.getElementById("manual-form").addEventListener("submit", function () {
+      showLoadingState(this.querySelector("button"), "Loading map...");
+    });
+    document.getElementById("search-form").addEventListener("submit", function () {
+      showLoadingState(this.querySelector("button"), "Searching...");
+    });
   </script>
 
   {% if not skip_geolocation %}
   <script>
     navigator.geolocation.getCurrentPosition(
       function (position) {
+        document.getElementById("status").innerHTML = '<span class="spinner spinner-dark"></span>Loading map...';
         window.location = "/map?lat=" + position.coords.latitude +
                            "&lon=" + position.coords.longitude +
                            "&radius_m={{ default_radius_m }}";
