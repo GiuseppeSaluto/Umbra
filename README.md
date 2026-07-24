@@ -97,6 +97,14 @@ local MongoDB instance — it does not read or write any other project's databas
 connection it creates whatever collections and 2dsphere indexes are missing, so the schema
 is self-consistent from a clean instance.
 
+One-time seed of Italy's official comuni list (ISTAT, snapshotted at
+`data/istat_comuni.csv`) — not part of the automatic bootstrap above, since it's actual
+data (7,896 documents) rather than empty collections/indexes:
+
+```bash
+python -m db.seed_comuni
+```
+
 ---
 
 ## Project Structure

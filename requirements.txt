@@ -5,6 +5,7 @@ pymongo==4.17.0
 folium==0.20.0
 numpy==2.5.1
 sentinelhub==3.11.5
+pyproj==3.7.2
 requests==2.34.2
 python-dotenv==1.2.2
 pytest==9.1.0
