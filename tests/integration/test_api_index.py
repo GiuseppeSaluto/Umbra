@@ -29,3 +29,10 @@ def test_index_splits_pasted_lat_lon_pair_into_both_fields(client):
     assert "splitPastedCoordinates" in html
     assert 'getElementById("lat-input")' in html
     assert 'getElementById("lon-input")' in html
+
+
+def test_index_has_climate_shelter_search_panel(client):
+    html = client.get("/").get_data(as_text=True)
+    assert 'id="shelter-form"' in html
+    assert 'name="comune"' in html
+    assert "/api/shelters?comune=" in html

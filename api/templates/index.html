@@ -29,8 +29,18 @@
       background-image:
         radial-gradient(480px circle at 12% 15%, rgba(5, 148, 136, 0.10), transparent 60%),
         radial-gradient(560px circle at 88% 85%, rgba(53, 96, 168, 0.10), transparent 60%);
+      padding: 2rem 0;
+    }
+    .dashboard {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      justify-content: center;
+      align-items: flex-start;
+      width: min(94vw, 900px);
     }
     .card {
+      flex: 1 1 380px;
       width: min(92vw, 420px);
       background: var(--card);
       border: 1px solid var(--border);
@@ -88,8 +98,32 @@
     }
     button:hover { box-shadow: 0 8px 20px rgba(5, 148, 136, 0.30); transform: translateY(-1px); }
     button:disabled { opacity: 0.7; cursor: default; transform: none; box-shadow: none; }
-    #search-form button { background: var(--blue); }
-    #search-form button:hover { box-shadow: 0 8px 20px rgba(53, 96, 168, 0.30); }
+    #search-form button, #shelter-form button { background: var(--blue); }
+    #search-form button:hover, #shelter-form button:hover { box-shadow: 0 8px 20px rgba(53, 96, 168, 0.30); }
+    #shelter-results {
+      margin-top: 1.25rem;
+      text-align: left;
+      font-size: 0.9rem;
+    }
+    #shelter-results .shelter-summary {
+      color: var(--ink-secondary);
+      margin-bottom: 0.75rem;
+    }
+    #shelter-results ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      max-height: 260px;
+      overflow-y: auto;
+    }
+    #shelter-results li {
+      padding: 0.6rem 0.8rem;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 0.5rem;
+    }
+    #shelter-results li .shelter-name { font-weight: 700; }
+    #shelter-results li .shelter-meta { color: var(--ink-secondary); font-size: 0.8rem; }
     .spinner {
       display: inline-block;
       width: 14px;
@@ -121,25 +155,39 @@
   </style>
 </head>
 <body>
-  <div class="card">
-    <h1>Umbra 🌳</h1>
-    <p class="tagline">Green areas &amp; heat islands, mapped from real satellite data.</p>
-    <p id="status">{% if skip_geolocation %}Where do you want to look?{% else %}Locating you...{% endif %}</p>
+  <div class="dashboard">
+    <div class="card">
+      <h1>Umbra 🌳</h1>
+      <p class="tagline">Green areas &amp; heat islands, mapped from real satellite data.</p>
+      <p id="status">{% if skip_geolocation %}Where do you want to look?{% else %}Locating you...{% endif %}</p>
 
-    <form id="manual-form" action="/map" method="get" {% if skip_geolocation %}style="display: block;"{% else %}style="display: none;"{% endif %}>
-      <p>{% if skip_geolocation %}Enter coordinates manually:{% else %}Location unavailable - enter coordinates manually:{% endif %}</p>
-      <input type="text" inputmode="decimal" pattern="\s*-?[0-9]*[.,]?[0-9]+\s*" name="lat" id="lat-input" placeholder="Latitude (e.g. 44.6471)" required>
-      <input type="text" inputmode="decimal" pattern="\s*-?[0-9]*[.,]?[0-9]+\s*" name="lon" id="lon-input" placeholder="Longitude (e.g. 10.9252)" required>
-      <input type="hidden" name="radius_m" value="{{ default_radius_m }}">
-      <button type="submit">View map</button>
-    </form>
+      <form id="manual-form" action="/map" method="get" {% if skip_geolocation %}style="display: block;"{% else %}style="display: none;"{% endif %}>
+        <p>{% if skip_geolocation %}Enter coordinates manually:{% else %}Location unavailable - enter coordinates manually:{% endif %}</p>
+        <input type="text" inputmode="decimal" pattern="\s*-?[0-9]*[.,]?[0-9]+\s*" name="lat" id="lat-input" placeholder="Latitude (e.g. 44.6471)" required>
+        <input type="text" inputmode="decimal" pattern="\s*-?[0-9]*[.,]?[0-9]+\s*" name="lon" id="lon-input" placeholder="Longitude (e.g. 10.9252)" required>
+        <input type="hidden" name="radius_m" value="{{ default_radius_m }}">
+        <button type="submit">View map</button>
+      </form>
 
-    <div class="divider">or</div>
+      <div class="divider">or</div>
 
-    <form id="search-form" action="/search" method="get">
-      <input type="text" name="place" placeholder="Search a place, e.g. Modena" required>
-      <button type="submit">Search</button>
-    </form>
+      <form id="search-form" action="/search" method="get">
+        <input type="text" name="place" placeholder="Search a place, e.g. Modena" required>
+        <button type="submit">Search</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h1>Climate shelters</h1>
+      <p class="tagline">Search an Italian comune to see mapped climate shelters.</p>
+
+      <form id="shelter-form">
+        <input type="text" name="comune" id="comune-input" placeholder="Comune, e.g. Firenze" required>
+        <button type="submit">Search</button>
+      </form>
+
+      <div id="shelter-results"></div>
+    </div>
   </div>
 
   <script>
@@ -163,6 +211,59 @@
     });
     document.getElementById("search-form").addEventListener("submit", function () {
       showLoadingState(this.querySelector("button"), "Searching...");
+    });
+
+    function renderShelterResults(status, data) {
+      var resultsEl = document.getElementById("shelter-results");
+
+      if (status === 400 || status === 404) {
+        resultsEl.textContent = data.error;
+        return;
+      }
+      if (data.shelter_count === 0) {
+        resultsEl.textContent = "No climate shelter data mapped yet for " + data.comune +
+          " - coverage is still limited to a handful of cities.";
+        return;
+      }
+
+      var html = '<p class="shelter-summary">' + data.shelter_count + " shelter(s) found in " + data.comune + "</p><ul>";
+      data.shelters.forEach(function (shelter) {
+        html += '<li><div class="shelter-name">' + shelter.name + "</div>";
+        if (shelter.address) {
+          html += '<div class="shelter-meta">' + shelter.address + "</div>";
+        }
+        html += "</li>";
+      });
+      resultsEl.innerHTML = html + "</ul>";
+    }
+
+    var shelterForm = document.getElementById("shelter-form");
+    var shelterButtonLabel = shelterForm.querySelector("button").textContent;
+    shelterForm.addEventListener("submit", function (event) {
+      event.preventDefault();
+      var button = this.querySelector("button");
+      var resultsEl = document.getElementById("shelter-results");
+      var comune = document.getElementById("comune-input").value.trim();
+
+      showLoadingState(button, "Searching...");
+      resultsEl.innerHTML = "";
+
+      fetch("/api/shelters?comune=" + encodeURIComponent(comune))
+        .then(function (response) {
+          return response.json().then(function (data) {
+            return { status: response.status, data: data };
+          });
+        })
+        .then(function (result) {
+          renderShelterResults(result.status, result.data);
+        })
+        .catch(function () {
+          resultsEl.textContent = "Something went wrong. Please try again.";
+        })
+        .finally(function () {
+          button.disabled = false;
+          button.textContent = shelterButtonLabel;
+        });
     });
   </script>
 
